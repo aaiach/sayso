@@ -9,6 +9,7 @@ the username is filled, on the second the password.
 from __future__ import annotations
 
 import re
+from difflib import SequenceMatcher
 
 from ..approval import Approver
 from ..browser import cdp, chrome_ui, target as tg
@@ -29,12 +30,25 @@ def account_entries(lines) -> list[dict]:
     return [{"index": i, "label": t} for i, t in enumerate(titled)]
 
 
+def _score(username: str, label: str) -> float:
+    """How well an OCR'd dropdown row matches the username: 1.0 = contained exactly; else the
+    best similarity against any word (OCR misreads like '.corn' for '.com' still score high)."""
+    u, lab = username.lower(), label.lower()
+    if u in lab.replace(" ", ""):
+        return 1.0
+    return max([SequenceMatcher(None, u, w).ratio() for w in lab.split()] + [0.0])
+
+
 def find_entry(entries, username: str) -> int:
-    u = username.lower()
-    match = [e for e in entries if u in e["label"].lower().replace(" ", "")]
-    if len(match) != 1:
-        raise BrokerError(f"account {username} not uniquely found in dropdown")
-    return match[0]["index"]
+    """The one row for `username`: an exact hit, or one clearly best near-match (>= 0.85 and
+    0.1 ahead of the next). Otherwise refuse, listing the account names seen (no passwords)."""
+    ranked = sorted(((_score(username, e["label"]), e) for e in entries), key=lambda x: -x[0])
+    best = ranked[0][0] if ranked else 0.0
+    second = ranked[1][0] if len(ranked) > 1 else 0.0
+    if best >= 0.85 and (best == 1.0 and second < 1.0 or best - second >= 0.1):
+        return ranked[0][1]["index"]
+    seen = ", ".join(e["label"] for e in entries) or "no entries"
+    raise BrokerError(f"account {username} not uniquely found in Chrome's list; it shows: {seen}")
 
 
 async def _optional(page, selector):
@@ -71,7 +85,7 @@ async def select(page, username: str, t: tg.Target | None = None) -> list[dict]:
         raise BrokerError("password field already has a value")
     pop = await chrome_ui.open_dropdown(page, anchor)
     try:
-        entries = account_entries(chrome_ui.dropdown_lines(pop, "password-dropdown.png"))
+        entries = account_entries(chrome_ui.dropdown_lines(pop))
         chrome_ui.highlight(find_entry(entries, username))
         await page.wait_for_timeout(500)
     except Exception:

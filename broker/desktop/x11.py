@@ -74,14 +74,14 @@ def active_pid() -> str:
     return _xdo("getactivewindow", "getwindowpid").stdout.strip()
 
 
-def screenshot(win: Window, path: str) -> str:
+def screenshot(win: Window) -> bytes:
+    """PNG bytes of a window, in memory only: never written to disk, where other programs
+    (the agent included) could read what Chrome's popups show."""
     import mss
     import mss.tools
-    os.makedirs(os.path.dirname(path), exist_ok=True)
     with mss.mss() as s:
         img = s.grab({"left": win.x, "top": win.y, "width": win.width, "height": win.height})
-        mss.tools.to_png(img.rgb, img.size, output=path)
-    return path
+        return mss.tools.to_png(img.rgb, img.size)
 
 
 def click(x: int, y: int) -> None:

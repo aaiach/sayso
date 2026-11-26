@@ -8,7 +8,6 @@ so its UI is read by screenshots + OCR.
 """
 from __future__ import annotations
 
-import os
 import re
 from dataclasses import dataclass
 
@@ -16,14 +15,8 @@ from ..desktop import ocr, x11
 from ..errors import BrokerError
 from . import cdp
 
-OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "spike-out")
-
 # Words in Chrome's unmask prompt ("Enter the CVC for Visa ••••1234", "Confirm card", ...).
 UNMASK_WORDS = re.compile(r"\b(cvc|cvv|security code|code de s[ée]curit[ée]|verify|v[ée]rifi)", re.I)
-
-
-def _out(name: str) -> str:
-    return os.path.join(OUT_DIR, name)
 
 
 # ---------- window / focus ----------
@@ -77,8 +70,8 @@ async def open_dropdown(page, locator) -> x11.Window:
     return pop
 
 
-def dropdown_lines(pop: x11.Window, name: str = "dropdown.png") -> list[ocr.Line]:
-    return ocr.lines(x11.screenshot(pop, _out(name)))
+def dropdown_lines(pop: x11.Window) -> list[ocr.Line]:
+    return ocr.lines(x11.screenshot(pop))
 
 
 def highlight(index: int) -> None:
@@ -110,7 +103,7 @@ def snapshot() -> Before:
     pid = cdp.browser_pid()
     main = x11.main_window(pid)
     return Before(frozenset(w.key for w in x11.windows(pid) if w.id != main.id),
-                  ocr.count(x11.screenshot(main, _out("before-enter.png")), UNMASK_WORDS))
+                  ocr.count(x11.screenshot(main), UNMASK_WORDS))
 
 
 def unmask_prompt_shown(before: Before) -> bool:
@@ -121,7 +114,7 @@ def unmask_prompt_shown(before: Before) -> bool:
     if any(w.key not in before.windows and w.width > 100 and w.height > 80
            for w in x11.windows(pid) if w.id != main.id):
         return True
-    return ocr.count(x11.screenshot(main, _out("after-enter.png")), UNMASK_WORDS) > before.words
+    return ocr.count(x11.screenshot(main), UNMASK_WORDS) > before.words
 
 
 async def prompt_has_keyboard(page) -> bool:
