@@ -9,6 +9,7 @@ import re
 import subprocess
 
 from .. import config, policy
+from . import covered
 from ..errors import BrokerError
 
 CDP_URL, PROFILE = config.CDP_URL, config.PROFILE
@@ -47,9 +48,10 @@ async def find_field(page, selector: str, kind: str):
         if not policy.frame_allowed(site, frame.url, kind):
             continue
         loc = frame.locator(selector)
-        if await loc.count() and await loc.first.is_visible():
-            policy.check(site, frame.url, kind)
-            return frame, loc.first
+        for i in range(await loc.count()):
+            if await covered.reachable(loc.nth(i)):
+                policy.check(site, frame.url, kind)
+                return frame, loc.nth(i)
     raise BrokerError(f"no {selector} field in an allowed frame on {site}")
 
 

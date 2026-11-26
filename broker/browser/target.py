@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from .. import policy
 from ..errors import BrokerError
-from . import cdp, focus
+from . import cdp, covered, focus
 
 TEXTLIKE = {"text", "tel", "number", "email", "password", ""}
 FIELD_TYPES = {"password": {"password"}, "otp": TEXTLIKE - {"email"},
@@ -75,7 +75,7 @@ async def _check_field(page, frame, locator, kind: str, types: set[str]) -> None
 
 async def _visible(frame, selector: str) -> list:
     loc = frame.locator(selector)
-    return [loc.nth(i) for i in range(await loc.count()) if await loc.nth(i).is_visible()]
+    return [loc.nth(i) for i in range(await loc.count()) if await covered.reachable(loc.nth(i))]
 
 
 async def resolve(page, t: Target, kind: str, default: str, types: set[str] | None = None):
@@ -91,7 +91,7 @@ async def resolve(page, t: Target, kind: str, default: str, types: set[str] | No
         hits = [(frame, loc)]
     if len(hits) != 1:
         what = "focused field" if t.focused else repr(t.selector)
-        raise BrokerError(f"{what} matched {len(hits)} visible fields; need exactly 1")
+        raise BrokerError(f"{what} matched {len(hits)} visible, uncovered fields; need exactly 1")
     frame, loc = hits[0]
     await _check_field(page, frame, loc, kind, types)
     return frame, loc
