@@ -7,6 +7,7 @@ import getpass
 import socket
 import sys
 
+from .. import config
 from ..errors import BrokerError
 from . import methods, store, totp
 
@@ -52,4 +53,5 @@ def status() -> dict:
                      "locked" if s.get("failures", 0) >= methods.MAX_FAILURES else
                      f"ready ({s.get('failures', 0)} recent wrong attempts)")
     out["validate"] = "ready"
+    out["secrets_in"] = config.SECRET_BACKEND
     return out

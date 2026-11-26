@@ -57,6 +57,9 @@ approval exists, the approval appears in a terminal window on the desktop.
 
 ## Security notes
 
+- The broker's own secrets (PIN hash, authenticator secret, later the phone-pairing keys) live in
+  the OS keyring (GNOME Keyring / Secret Service on Linux, Keychain on macOS), encrypted at rest.
+  Machines without one can opt into a 0600 file with `BROKER_SECRET_BACKEND=file`.
 - Never commit `.env` or anything from the state directory; the repo's `.gitignore` covers both.
 - Like desktop password managers, sayso runs as your user and doesn't defend against hostile
   code running as you. The terminal approver is a safeguard; phone approval (in progress) moves

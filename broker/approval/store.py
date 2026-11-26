@@ -1,47 +1,37 @@
-"""Approval-method state: PIN hash, authenticator secret, failure counters. One JSON file, mode 0600.
+"""Approval-method state (PIN hash, authenticator secret, failure counters), one JSON value
+per method in the broker's vault (the OS keyring by default; see vault.py).
 
-Planned: move the secrets into the OS keyring (encrypted at rest). Like any desktop secret
-store, it doesn't stop other programs running as the same user; a 4-digit PIN hash is cheap to
-brute-force offline, so the PIN only means something while this state stays private.
+A 4-digit PIN hash is cheap to brute-force offline, so the PIN only means something while
+this state stays private; the keyring keeps it encrypted at rest.
 """
 from __future__ import annotations
 
 import json
-import os
-from pathlib import Path
 
-from .. import config
+from ..vault import Vault, open_vault
 
-PATH: Path = config.APPROVAL_STORE
+_vault: Vault | None = None
 
 
-def load() -> dict:
-    try:
-        return json.loads(PATH.read_text())
-    except FileNotFoundError:
-        return {}
+def _v() -> Vault:
+    global _vault
+    if _vault is None:
+        _vault = open_vault()
+    return _vault
 
 
-def save(state: dict) -> None:
-    PATH.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    tmp = PATH.with_suffix(".tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
-        json.dump(state, f, indent=1)
-    os.replace(tmp, PATH)
+def _key(name: str) -> str:
+    return f"approval/{name}"
 
 
 def section(name: str) -> dict:
-    return load().get(name, {})
+    raw = _v().get(_key(name))
+    return json.loads(raw) if raw else {}
 
 
 def update(name: str, **fields) -> None:
-    state = load()
-    state.setdefault(name, {}).update(fields)
-    save(state)
+    _v().set(_key(name), json.dumps({**section(name), **fields}))
 
 
 def remove(name: str) -> None:
-    state = load()
-    state.pop(name, None)
-    save(state)
+    _v().delete(_key(name))

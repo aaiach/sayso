@@ -32,7 +32,10 @@ def _path(name: str, default: str) -> Path:
 CDP_URL = os.environ.get("BROKER_CDP", "http://127.0.0.1:9222")
 PROFILE = os.path.expanduser(os.environ.get("BROKER_PROFILE", ""))
 
-# Per-instance state: known sites, approval method state (PIN hash, authenticator secret).
+# Per-instance non-secret state (known sites).
 STATE_DIR = _path("BROKER_STATE_DIR", "~/.local/share/credential-broker")
 TRUST_STORE = _path("BROKER_TRUST_STORE", str(STATE_DIR / "known_sites.json"))
-APPROVAL_STORE = _path("BROKER_APPROVAL_STORE", str(STATE_DIR / "approval.json"))
+
+# Per-instance secrets (PIN hash, authenticator secret, later pairing keys): see vault.py.
+SECRET_BACKEND = os.environ.get("BROKER_SECRET_BACKEND", "keyring")
+KEYRING_SERVICE = os.environ.get("BROKER_KEYRING_SERVICE", "sayso")
