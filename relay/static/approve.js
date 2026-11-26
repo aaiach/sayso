@@ -18,7 +18,8 @@ async function handle(pairing, env, ui) {
   } catch {
     return ui.notice("A request failed authentication and was ignored.");
   }
-  if (R.id !== env.id || R.expires * 1000 < Date.now()) return;
+  if (R.id !== env.id) return;
+  if (R.expires * 1000 < Date.now()) return ui.notice("A request arrived after it had expired.");
   const decision = await ui.ask(R);                  // "approve" | "deny" | null (expired)
   await store.set("seen", [...seen.slice(-50), R.id]);
   if (!decision) return ui.notice("That request expired.");
@@ -27,17 +28,26 @@ async function handle(pairing, env, ui) {
   ui.notice(decision === "approve" ? `Approved: ${R.item} on ${R.site}` : "Denied.");
 }
 
+let wake = null;
+
+// Drop the current wait and ask the relay again at once: called when the app comes back to the
+// screen, since iOS may have silently cut the connection while the app was in the background.
+export function pollNow() { wake?.abort(); }
+
 // Long-polls the phone's mailbox while the app is open (push only wakes the app up).
 export async function listen(pairing, ui) {
   let after = (await store.get("after")) || 0;
   for (;;) {
+    wake = new AbortController();
     try {
-      const r = await relay.next(pairing.box, "req", after);
+      const r = await relay.next(pairing.box, "req", after, 25, wake.signal);
+      ui.checked();
       if (!r) continue;
       after = r.seq;
       await store.set("after", after);
       await handle(pairing, r.env, ui);
     } catch (e) {
+      if (e.name === "AbortError") continue;          // timed out or woken up: ask again now
       ui.notice(`Connection problem, retrying… (${e.message})`);
       await sleep(3000);
     }

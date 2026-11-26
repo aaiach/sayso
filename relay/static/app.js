@@ -1,5 +1,5 @@
 // sayso phone app: screens and wiring. Pairing in pair.js, approvals in approve.js.
-import { listen } from "./approve.js";
+import { listen, pollNow } from "./approve.js";
 import { pair, parse, subscribe } from "./pair.js";
 import * as store from "./store.js";
 import { native } from "./x25519.js";
@@ -12,6 +12,7 @@ const standalone = matchMedia("(display-mode: standalone)").matches || navigator
 
 const ui = {
   notice: (t) => { $("notice").textContent = t; },
+  checked: () => { $("p-seen").textContent = `Relay checked at ${new Date().toLocaleTimeString()}`; },
   ask: (R) => new Promise((resolve) => {
     $("r-site").textContent = R.site;
     $("r-item").textContent = R.item;
@@ -39,6 +40,9 @@ function paired(p) {
   $("p-fp").textContent = p.fingerprint;
   $("p-push").textContent = p.push ? "on" : "off (keep this app open to see requests)";
   status("Waiting for requests…");
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) pollNow(); });
+  addEventListener("pageshow", pollNow);
+  navigator.serviceWorker?.addEventListener("message", (e) => { if (e.data === "poll") pollNow(); });
   listen(p, ui);
 }
 

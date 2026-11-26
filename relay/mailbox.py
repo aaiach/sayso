@@ -24,9 +24,11 @@ class Message:
 
 class Mailboxes:
     def __init__(self, ttl: float = TTL_S):
-        self.ttl, self.counter = ttl, 0
+        # Starts from the clock (ms) so sequence numbers keep growing across relay restarts:
+        # phones remember the last one they saw.
+        self.ttl, self.counter = ttl, int(time.time() * 1000)
         self.messages: dict[tuple, Message] = {}
-        self.waiting: dict[tuple, asyncio.Event] = {}
+        self.waiting: dict[tuple, list] = {}       # key -> [event, readers waiting on it]
 
     @staticmethod
     def valid(box: str, slot: str) -> bool:
@@ -47,7 +49,7 @@ class Mailboxes:
         self.counter += 1                  # global, so a sequence never goes backwards
         self.messages[key] = Message(self.counter, data, time.time() + self.ttl)
         if key in self.waiting:
-            self.waiting.pop(key).set()
+            self.waiting.pop(key)[0].set()
         return self.counter
 
     async def get(self, box: str, slot: str, after: int, wait: float) -> Message | None:
@@ -62,10 +64,13 @@ class Mailboxes:
                 return None
             if key not in self.waiting and len(self.waiting) >= MAX_KEYS:
                 raise ValueError("relay busy")
-            ev = self.waiting.setdefault(key, asyncio.Event())
+            w = self.waiting.setdefault(key, [asyncio.Event(), 0])
+            w[1] += 1
             try:
-                await asyncio.wait_for(ev.wait(), left)
+                await asyncio.wait_for(w[0].wait(), left)
             except asyncio.TimeoutError:
-                if self.waiting.get(key) is ev:
-                    del self.waiting[key]
                 return None
+            finally:                       # forget the event only once no reader still uses it
+                w[1] -= 1
+                if w[1] == 0 and self.waiting.get(key) is w:
+                    del self.waiting[key]

@@ -16,7 +16,10 @@ self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   e.waitUntil((async () => {
     const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-    if (wins.length) return wins[0].focus();
+    if (wins.length) {
+      wins[0].postMessage("poll");                 // the app may hold a stale connection
+      return wins[0].focus();
+    }
     return self.clients.openWindow("/");
   })());
 });

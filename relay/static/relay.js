@@ -13,12 +13,24 @@ export async function put(box, slot, env) {
   return (await r.json()).seq;
 }
 
-// The next message newer than `after`, or null after ~25 s without one.
-export async function next(box, slot, after, wait = 25) {
-  const r = await fetch(`/mb/${box}/${slot}?after=${after}&wait=${wait}`, { cache: "no-store" });
-  if (r.status === 204) return null;
-  if (!r.ok) throw new Error(`relay error (${r.status})`);
-  return { seq: Number(r.headers.get("X-Seq")), env: await r.json() };
+// The next message newer than `after`, or null after ~25 s without one. Each request has its
+// own deadline: iOS can leave a request from a suspended app hanging forever, never failing.
+// `signal` lets the app abandon the wait (e.g. when it comes back to the screen).
+export async function next(box, slot, after, wait = 25, signal) {
+  const ctl = new AbortController();
+  const stop = () => ctl.abort();
+  signal?.addEventListener("abort", stop);
+  const timer = setTimeout(stop, (wait + 10) * 1000);
+  try {
+    const r = await fetch(`/mb/${box}/${slot}?after=${after}&wait=${wait}`,
+      { cache: "no-store", signal: ctl.signal });
+    if (r.status === 204) return null;
+    if (!r.ok) throw new Error(`relay error (${r.status})`);
+    return { seq: Number(r.headers.get("X-Seq")), env: await r.json() };
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", stop);
+  }
 }
 
 export async function waitFor(box, slot, after, seconds) {
