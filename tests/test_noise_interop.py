@@ -27,7 +27,7 @@ def keypair():
 class Phone:
     def __init__(self):
         self.p = subprocess.Popen(["node", str(HERE / "noise_peer.mjs")], stdin=subprocess.PIPE,
-                                  stdout=subprocess.PIPE, text=True)
+                                  stdout=subprocess.PIPE, text=True, env={**os.environ})
 
     def __call__(self, **m):
         self.p.stdin.write(json.dumps(m) + "\n")
@@ -83,7 +83,9 @@ def expect_fail(name, fn):
 
 def main():
     phone, b, psk = Phone(), keypair(), os.urandom(32)
-    p_pub = unb64(phone(cmd="pub")["pub"])
+    info = phone(cmd="pub")
+    p_pub = unb64(info["pub"])
+    print("phone X25519:", "browser built-in" if info["native"] else "noble-curves fallback")
     seen, payload = pairing(phone, b, psk, psk)
     assert seen == p_pub and payload == b"device=test"
     print("XXpsk3 pairing: ok (keys exchanged, msg3 payload authenticated)")

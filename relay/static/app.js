@@ -2,6 +2,7 @@
 import { listen } from "./approve.js";
 import { pair, parse, subscribe } from "./pair.js";
 import * as store from "./store.js";
+import { native } from "./x25519.js";
 
 const $ = (id) => document.getElementById(id);
 const show = (id, on = true) => $(id).classList.toggle("hidden", !on);
@@ -56,6 +57,7 @@ async function startPairing(link) {
 
 function pairingScreen() {
   show("pair");
+  native().then((n) => { $("crypto").textContent = `Key exchange: ${n ? "built into this browser" : "noble-curves (this browser lacks X25519)"}`; });
   const link = parse(location.hash);
   if (link && isIOS && !standalone) {
     status("First add sayso to your Home Screen (Share → Add to Home Screen). Then copy the pairing " +

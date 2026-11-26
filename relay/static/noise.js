@@ -1,7 +1,11 @@
 // Noise Protocol Framework (rev 34), the two patterns sayso uses, on WebCrypto only:
 //   Noise_KK_25519_AESGCM_SHA256      each approval (both static keys pinned)
 //   Noise_XXpsk3_25519_AESGCM_SHA256  pairing (psk = one-time key from the QR code)
+// X25519 comes from x25519.js (WebCrypto, or noble-curves where the browser lacks it).
 // Cross-tested against the Python reference library (tests/test_noise_interop.py).
+import { dh, generateKeyPair } from "./x25519.js";
+
+export { generateKeyPair };
 const subtle = globalThis.crypto.subtle;
 const enc = new TextEncoder();
 
@@ -38,14 +42,6 @@ async function aead(op, k, n, ad, data) {
   return new Uint8Array(await subtle[op](alg, key, data));
 }
 
-export async function generateKeyPair(extractable = false) {
-  const kp = await subtle.generateKey({ name: "X25519" }, extractable, ["deriveBits"]);
-  return { privateKey: kp.privateKey, publicKey: new Uint8Array(await subtle.exportKey("raw", kp.publicKey)) };
-}
-async function dh(kp, pub) {
-  const p = await subtle.importKey("raw", pub, { name: "X25519" }, true, []);
-  return new Uint8Array(await subtle.deriveBits({ name: "X25519", public: p }, kp.privateKey, 256));
-}
 
 export class Handshake {
   // opts: { pattern: "KK" | "XXpsk3", initiator, s (key pair), rs (remote static), psk }

@@ -6,6 +6,10 @@ import * as store from "./store.js";
 
 const te = new TextEncoder(), td = new TextDecoder();
 const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+// Errors say which step failed, so a phone-specific problem can be pinned down.
+const step = async (name, work) => {
+  try { return await work; } catch (e) { throw new Error(`${name}: ${e.message || e.name}`); }
+};
 
 export function parse(link) {
   const m = /#pair=([\w-]+)\.([\w-]+)\.([\w-]+)\.([\w-]+)/.exec(link || "");
@@ -37,20 +41,23 @@ export async function subscribe(vapid) {
 }
 
 export async function pair(p, push, status) {
-  const P = await generateKeyPair(false);
-  const hs = await new Handshake({ pattern: "XXpsk3", initiator: true, s: P, psk: p.psk }).init();
-  await relay.put(p.box, "a", relay.envelope("pair", await hs.write()));
+  const P = await step("creating this phone's key", generateKeyPair(false));
+  const hs = await step("starting the handshake",
+    new Handshake({ pattern: "XXpsk3", initiator: true, s: P, psk: p.psk }).init());
+  await relay.put(p.box, "a", relay.envelope("pair", await step("handshake message 1", hs.write())));
   status("Contacting your computer…");
   const m2 = await relay.waitFor(p.box, "b", 0, 120);
-  const info = JSON.parse(td.decode(await hs.read(relay.unb64u(m2.env.noise))));
+  const info = JSON.parse(td.decode(await step("handshake message 2", hs.read(relay.unb64u(m2.env.noise)))));
   if (!same(hs.rs, p.b)) throw new Error("this isn't the computer from the QR code");
   const box = relay.b64u(crypto.getRandomValues(new Uint8Array(16)));
   const payload = { device: deviceName(), box, push };
-  await relay.put(p.box, "a", relay.envelope("pair", await hs.write(te.encode(JSON.stringify(payload)))));
+  await relay.put(p.box, "a", relay.envelope("pair",
+    await step("handshake message 3", hs.write(te.encode(JSON.stringify(payload))))));
   const fp = await fingerprint(P.publicKey);
   status(`On your computer, check that the key is ${fp}, then type y.`);
   const done = await relay.waitFor(p.box, "b", m2.seq, 600);
   if (done.env.id !== "pair-ok") throw new Error("pairing was refused on the computer");
-  await store.set("pairing", { P, b: p.b, box, broker: info.broker, fingerprint: fp, push: !!push });
+  await step("saving the pairing",
+    store.set("pairing", { P, b: p.b, box, broker: info.broker, fingerprint: fp, push: !!push }));
   return store.get("pairing");
 }

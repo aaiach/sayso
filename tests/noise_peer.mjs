@@ -1,7 +1,9 @@
 // Test helper: plays the phone side with relay/static/noise.js, driven over stdin/stdout
 // (one JSON object per line, bytes as base64) by tests/test_noise_interop.py.
 import { createInterface } from "node:readline";
-import { Handshake, generateKeyPair } from "../relay/static/noise.js";
+if (process.env.SAYSO_FORCE_NOBLE) globalThis.SAYSO_FORCE_NOBLE = true;   // test the fallback path
+const { Handshake, generateKeyPair } = await import("../relay/static/noise.js");
+const { native } = await import("../relay/static/x25519.js");
 
 const b64 = (u) => Buffer.from(u).toString("base64");
 const unb64 = (s) => new Uint8Array(Buffer.from(s, "base64"));
@@ -12,7 +14,7 @@ let hs = null;
 for await (const line of createInterface({ input: process.stdin })) {
   const m = JSON.parse(line);
   try {
-    if (m.cmd === "pub") say({ pub: b64(P.publicKey) });
+    if (m.cmd === "pub") say({ pub: b64(P.publicKey), native: await native() });
     else if (m.cmd === "xx_start") {
       hs = await new Handshake({ pattern: "XXpsk3", initiator: true, s: P, psk: unb64(m.psk) }).init();
       say({ msg: b64(await hs.write()) });
