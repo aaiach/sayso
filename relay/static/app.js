@@ -4,6 +4,7 @@ import { pair, parse, subscribe } from "./pair.js";
 import * as store from "./store.js";
 import { native } from "./x25519.js";
 
+const VERSION = "3";                          // shown on screen, to tell which app build is running
 const $ = (id) => document.getElementById(id);
 const show = (id, on = true) => $(id).classList.toggle("hidden", !on);
 const status = (t) => { $("status").textContent = t; };
@@ -40,6 +41,8 @@ function paired(p) {
   $("p-fp").textContent = p.fingerprint;
   $("p-push").textContent = p.push ? "on" : "off (keep this app open to see requests)";
   status("Waiting for requests…");
+  $("p-seen").textContent = "Connecting to the relay…";
+  native().then((n) => { $("crypto").textContent = `App v${VERSION} · key exchange: ${n ? "built in" : "noble-curves"}`; });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) pollNow(); });
   addEventListener("pageshow", pollNow);
   navigator.serviceWorker?.addEventListener("message", (e) => { if (e.data === "poll") pollNow(); });
