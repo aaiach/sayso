@@ -7,11 +7,10 @@ One-time codes: flows/otp.py (same `type_into`).
 from __future__ import annotations
 
 from ..approval import Approver
-from ..browser import cdp, chrome_ui
+from ..browser import cdp
 from ..browser.identity import Identity
-from ..desktop import x11
-from ..errors import BrokerError
 from . import common
+from .write import type_into
 
 PASSWORD = 'input[type="password"]'
 USERNAME = ('input[autocomplete="username"], input[autocomplete="email"], input[type="email"], '
@@ -19,28 +18,6 @@ USERNAME = ('input[autocomplete="username"], input[autocomplete="email"], input[
 CARD_NUMBER = 'input[autocomplete="cc-number"]'
 CARD_EXPIRY = 'input[autocomplete="cc-exp"]'
 CARD_CVC = 'input[autocomplete="cc-csc"]'
-
-
-async def type_into(page, frame, locator, secret: str, ident: Identity) -> dict:
-    """Atomic write: same site+certificate as approved, real click on an EMPTY field, confirm
-    it has focus, type `secret` as real keystrokes. Returns masked facts."""
-    if (await cdp.masked(locator))["filled"]:
-        raise BrokerError("field already has a value")
-    await common.before_write(page, ident)
-    await chrome_ui.activate(page)
-    await chrome_ui.real_click(page, locator)
-    await page.wait_for_timeout(400)
-    if chrome_ui.dropdown():          # Chrome may offer autofill on click: close it, keep focus
-        chrome_ui.dismiss()
-        await page.wait_for_timeout(200)
-    if not await cdp.is_focused(frame, locator):
-        raise BrokerError("field did not take focus")
-    try:
-        x11.type_secret(secret)
-    finally:
-        secret = None
-    await page.wait_for_timeout(300)
-    return await cdp.masked(locator)
 
 
 async def fill_password(page, approver: Approver, username: str | None = None) -> dict:

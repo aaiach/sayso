@@ -114,6 +114,13 @@ async def editable_focused(page) -> bool:
     return False
 
 
+async def frame_has_editable_focus(frame) -> bool:
+    try:
+        return await frame.evaluate(_EDITABLE_FOCUSED_JS)
+    except Exception:
+        return False
+
+
 async def is_focused(frame, locator) -> bool:
     """True if `locator` is the focused element of a focused frame."""
     return await locator.evaluate("e => document.hasFocus() && document.activeElement === e")

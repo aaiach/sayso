@@ -26,10 +26,23 @@ class Identity:
         return asdict(self)
 
 
-def _subject_matches(subject: str, host: str) -> bool:
-    if subject == host:
+def _name_matches(name: str, host: str) -> bool:
+    """RFC 6125: exact, or a wildcard covering exactly one left-most label."""
+    name, host = name.lower(), host.lower()
+    if name == host:
         return True
-    return subject.startswith("*.") and host.endswith(subject[1:]) and host.count(".") == subject.count(".")
+    return name.startswith("*.") and host.endswith(name[1:]) and host.count(".") == name.count(".")
+
+
+def cert_names(der: bytes) -> list[str]:
+    """DNS names the leaf certificate is valid for (its subjectAltName list)."""
+    from cryptography import x509
+    try:
+        ext = x509.load_der_x509_certificate(der).extensions.get_extension_for_class(
+            x509.SubjectAlternativeName)
+    except x509.ExtensionNotFound:
+        return []
+    return ext.value.get_values_for_type(x509.DNSName)
 
 
 async def read(page) -> Identity:
@@ -54,10 +67,12 @@ async def read(page) -> Identity:
         raise BrokerError(f"Chrome does not consider {host} secure ({v.get('securityState')})")
     if c.get("certificateNetworkError") or c.get("certificateHasWeakSignature"):
         raise BrokerError(f"certificate problem on {host}")
+    leaf = base64.b64decode(chain[0])
     ident = Identity(host, v["securityState"], c.get("subjectName", ""), c.get("issuer", ""),
-                     int(c.get("validTo", 0)), hashlib.sha256(base64.b64decode(chain[0])).hexdigest())
-    if not _subject_matches(ident.subject, host):
-        raise BrokerError(f"certificate is for {ident.subject}, not {host}")
+                     int(c.get("validTo", 0)), hashlib.sha256(leaf).hexdigest())
+    # Chrome already matched the name; checked again here from the certificate itself.
+    if not any(_name_matches(n, host) for n in cert_names(leaf)):
+        raise BrokerError(f"certificate {ident.subject} does not cover {host}")
     return ident
 
 

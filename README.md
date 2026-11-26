@@ -39,6 +39,18 @@ python -m broker.cli otp --site bank.example.com --approval validate --fill
 Approval methods: `--approval validate` (one key), `pin` (`setup-pin` first) or `otp`
 (`setup-otp` first, scan the QR with any authenticator app).
 
+## Use it from an agent (MCP)
+
+```bash
+claude mcp add --scope user sayso -e PYTHONPATH=$PWD -- python -m broker.mcp_server
+```
+
+The agent gets three tools: `sayso_check` (dry run: is the target right?), `sayso_fill` (one
+secret into one field, after your approval) and `sayso_status`. It passes where the field is
+(a selector, the frame, "the focused field", or split code boxes) and which secret (a Chrome-saved
+password or card, or one you type when approving), never a value, never code. Until phone
+approval exists, the approval appears in a terminal window on the desktop.
+
 ## Security notes
 
 - Never commit `.env` or anything from the state directory; the repo's `.gitignore` covers both.

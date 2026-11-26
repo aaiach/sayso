@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 
 from ..approval import Approver
-from ..browser import cdp, chrome_ui
+from ..browser import cdp, chrome_ui, target as tg
 from ..desktop import x11
 from ..errors import BrokerError
 from . import common, direct
@@ -40,9 +40,14 @@ def find_entry(entries, card: str, last4: str) -> int:
     return match[0]["index"]
 
 
-async def select(page, card: str, last4: str) -> list[dict]:
+async def locate(page, t: tg.Target | None):
+    """(frame, card-number field): the agent's target, else the standard cc-number field."""
+    return await tg.resolve(page, t or tg.Target(), "card", direct.CARD_NUMBER)
+
+
+async def select(page, card: str, last4: str, t: tg.Target | None = None) -> list[dict]:
     """Open the dropdown and highlight the card (preview only). Returns masked entries."""
-    _, field = await cdp.find_field(page, direct.CARD_NUMBER, "card")
+    _, field = await locate(page, t)
     if (await cdp.masked(field))["filled"]:
         raise BrokerError("card field already has a value")
     pop = await chrome_ui.open_dropdown(page, field)
@@ -58,8 +63,8 @@ async def select(page, card: str, last4: str) -> list[dict]:
     return [{"index": e["index"], "last4": e["last4"]} for e in entries]
 
 
-async def dry_run(page, card: str, last4: str) -> dict:
-    entries = await select(page, card, last4)
+async def dry_run(page, card: str, last4: str, t: tg.Target | None = None) -> dict:
+    entries = await select(page, card, last4, t)
     chrome_ui.dismiss()
     return {"status": "dry_run_ok", "entries": entries}
 
@@ -102,8 +107,8 @@ async def _commit_and_unmask(page, frame, field, cvc: str | None, ident) -> dict
     return {"cvc_prompt_detected": prompt, "broker_typed_cvc_in_prompt": typed}
 
 
-async def fill(page, card: str, last4: str, approver: Approver) -> dict:
-    frame, field = await cdp.find_field(page, direct.CARD_NUMBER, "card")
+async def fill(page, card: str, last4: str, approver: Approver, t: tg.Target | None = None) -> dict:
+    frame, field = await locate(page, t)
     if (await cdp.masked(field))["filled"]:
         raise BrokerError("card field already has a value")
     req, ident = await common.request(page, frame, "card", f"{card} ••{last4}")
@@ -112,7 +117,7 @@ async def fill(page, card: str, last4: str, approver: Approver) -> dict:
     cvc = approver.secret(req, "cvc", optional=True)      # before focus moves to Chrome
     try:
         await common.before_write(page, ident)   # Chrome writes the card itself on Enter
-        await select(page, card, last4)
+        await select(page, card, last4, t)
         out = await _commit_and_unmask(page, frame, field, cvc, ident)
         if out.get("status"):
             return out

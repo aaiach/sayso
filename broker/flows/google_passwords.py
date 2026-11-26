@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 
 from ..approval import Approver
-from ..browser import cdp, chrome_ui
+from ..browser import cdp, chrome_ui, target as tg
 from ..errors import BrokerError
 from . import common, direct
 
@@ -44,8 +44,16 @@ async def _optional(page, selector):
         return None, None
 
 
-async def _fields(page):
-    """(frame, anchor field to open the dropdown on, password field or None, username field or None)."""
+ANCHOR_TYPES = {"password", "email", "text", ""}
+
+
+async def locate(page, t: tg.Target | None = None):
+    """(frame, anchor field to open the dropdown on, password field or None, username field or None).
+    With a target from the agent, the anchor is that field."""
+    if t is not None and t.given:
+        frame, anchor = await tg.resolve(page, t, "password", direct.PASSWORD, ANCHOR_TYPES)
+        pw = anchor if (await tg.facts(anchor))["type"] == "password" else (await _optional(page, direct.PASSWORD))[1]
+        return frame, anchor, pw, (await _optional(page, direct.USERNAME))[1]
     pframe, pw = await _optional(page, direct.PASSWORD)
     uframe, user = await _optional(page, direct.USERNAME)
     # Anchor on the password field whenever it exists: on two-step pages Chrome treats the
@@ -57,8 +65,8 @@ async def _fields(page):
     raise BrokerError("no username or password field in an allowed frame")
 
 
-async def select(page, username: str) -> list[dict]:
-    _, anchor, pw, _ = await _fields(page)
+async def select(page, username: str, t: tg.Target | None = None) -> list[dict]:
+    _, anchor, pw, _ = await locate(page, t)
     if pw is not None and (await cdp.masked(pw))["filled"]:
         raise BrokerError("password field already has a value")
     pop = await chrome_ui.open_dropdown(page, anchor)
@@ -72,19 +80,19 @@ async def select(page, username: str) -> list[dict]:
     return [{"index": e["index"]} for e in entries]
 
 
-async def dry_run(page, username: str) -> dict:
-    entries = await select(page, username)
+async def dry_run(page, username: str, t: tg.Target | None = None) -> dict:
+    entries = await select(page, username, t)
     chrome_ui.dismiss()
     return {"status": "dry_run_ok", "entries": len(entries)}
 
 
-async def fill(page, username: str, approver: Approver) -> dict:
-    frame, _, pw, user = await _fields(page)
+async def fill(page, username: str, approver: Approver, t: tg.Target | None = None) -> dict:
+    frame, _, pw, user = await locate(page, t)
     req, ident = await common.request(page, frame, "password", username)
     if not common.approve(approver, req, ident):
         return {"status": "denied"}
     await common.before_write(page, ident)   # Chrome writes the password itself on Enter
-    await select(page, username)
+    await select(page, username, t)
     if not chrome_ui.dropdown():
         return {"status": "dropdown_closed"}
     chrome_ui.accept()
