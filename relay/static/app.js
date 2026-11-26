@@ -75,7 +75,10 @@ function pairingScreen() {
   $("paste-btn").onclick = async () => {
     const l = parse(await navigator.clipboard.readText().catch(() => prompt("Paste the pairing link")));
     if (!l) return ui.notice("That isn't a sayso pairing link.");
-    startPairing(l);
+    show("paste-btn", false);              // a fresh tap below: iOS asks for notifications only on a tap
+    status("Pairing link found.");
+    show("pair-btn");
+    $("pair-btn").onclick = () => startPairing(l);
   };
 }
 
