@@ -5,7 +5,7 @@ from __future__ import annotations
 from . import spec as sp, trust_store
 from .browser import cdp, identity, target as tg
 from .errors import BrokerError
-from .flows import google_cards, google_passwords, user_secret
+from .flows import saved, user_secret
 
 
 async def _field_facts(frame, loc) -> dict:
@@ -28,13 +28,11 @@ async def check(s: sp.FillSpec) -> dict:
                "site": {"host": ident.host, "issuer": ident.issuer, "sha256": ident.sha256[:16],
                         "warnings": list(trust_store.warnings(ident))}}
         src, t = s.secret["from"], s.tgt
-        if src == "google_password":
-            frame, anchor, pw, user = await google_passwords.locate(page, t)
-            out["anchor"] = await _field_facts(frame, anchor)
-            out["password_field_present"] = pw is not None
-        elif src == "google_card":
-            frame, field = await google_cards.locate(page, t)
+        if src in ("google_password", "google_card"):
+            frame, field, _ = await saved.locate(page, t, src)
             out["field"] = await _field_facts(frame, field)
+        elif t.chrome_prompt:
+            out["chrome_prompt"] = "not checked until fill (needs Chrome active, nothing focused)"
         else:
             frame, field, _ = await user_secret.locate(page, t, s.secret["what"])
             if isinstance(field, list):

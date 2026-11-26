@@ -55,8 +55,8 @@ def parse(d: dict) -> FillSpec:
             raise BrokerError("secret.last4 must be 4 digits")
     elif s.secret.get("what") not in WHAT:
         raise BrokerError(f"secret.what must be one of {', '.join(WHAT)}")
-    if s.tgt.boxes and src != "user":
-        raise BrokerError("target.boxes only works with secrets you type (from=user)")
+    if (s.tgt.boxes or s.tgt.chrome_prompt) and src != "user":
+        raise BrokerError("target.boxes / chrome_prompt only work with secrets you type (from=user)")
     return s
 
 
@@ -64,6 +64,4 @@ def label(s: FillSpec) -> str:
     """What the user sees on the approval card."""
     if s.label:
         return s.label
-    sec = s.secret
-    return {"google_password": f"saved password for {sec.get('username')}",
-            "google_card": f"{sec.get('card')} ••{sec.get('last4')}"}.get(sec["from"], sec.get("what", ""))
+    return s.secret.get("what", "")

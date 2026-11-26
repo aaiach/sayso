@@ -1,8 +1,9 @@
 """Where the agent says a secret goes, resolved to exactly one checked field (or N boxes).
 
 The agent passes locations only, never code: a selector (CSS or Playwright syntax), the frame
-host when the field is in an iframe, `focused` (the field the agent just clicked), or `boxes`
-(a selector matching the single-character boxes of a split code). Ambiguity is an error the
+host when the field is in an iframe, `focused` (the field the agent just clicked), `boxes`
+(a selector matching the single-character boxes of a split code), or `chrome_prompt`
+(Chrome's own CVC prompt, which the agent has just seen open). Ambiguity is an error the
 agent can fix; frame and field-type rules come from policy and the secret kind.
 """
 from __future__ import annotations
@@ -11,7 +12,7 @@ from dataclasses import dataclass
 
 from .. import policy
 from ..errors import BrokerError
-from . import cdp
+from . import cdp, focus
 
 TEXTLIKE = {"text", "tel", "number", "email", "password", ""}
 FIELD_TYPES = {"password": {"password"}, "otp": TEXTLIKE - {"email"},
@@ -28,21 +29,23 @@ class Target:
     frame: str | None = None
     focused: bool = False
     boxes: str | None = None
+    chrome_prompt: bool = False
 
     @classmethod
     def from_dict(cls, d: dict | None) -> "Target":
         d = d or {}
-        unknown = set(d) - {"selector", "frame", "focused", "boxes"}
+        unknown = set(d) - {"selector", "frame", "focused", "boxes", "chrome_prompt"}
         if unknown:
             raise BrokerError(f"unknown target keys: {', '.join(sorted(unknown))}")
-        t = cls(d.get("selector"), d.get("frame"), bool(d.get("focused")), d.get("boxes"))
-        if sum([bool(t.selector), t.focused, bool(t.boxes)]) > 1:
-            raise BrokerError("give one of selector, focused or boxes")
+        t = cls(d.get("selector"), d.get("frame"), bool(d.get("focused")), d.get("boxes"),
+                bool(d.get("chrome_prompt")))
+        if sum([bool(t.selector), t.focused, bool(t.boxes), t.chrome_prompt]) > 1:
+            raise BrokerError("give one of selector, focused, boxes or chrome_prompt")
         return t
 
     @property
     def given(self) -> bool:
-        return bool(self.selector or self.focused or self.boxes)
+        return bool(self.selector or self.focused or self.boxes or self.chrome_prompt)
 
 
 def _frames(page, t: Target):
@@ -80,7 +83,7 @@ async def resolve(page, t: Target, kind: str, default: str, types: set[str] | No
     types = FIELD_TYPES[kind] if types is None else types
     if t.focused:
         hits = [(f, f.locator(":focus")) for f in _frames(page, t)
-                if await cdp.frame_has_editable_focus(f)]
+                if await focus.frame_has_editable_focus(f)]
     elif t.selector:
         hits = [(f, l) for f in _frames(page, t) for l in await _visible(f, t.selector)]
     else:

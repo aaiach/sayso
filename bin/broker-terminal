@@ -1,6 +1,6 @@
 #!/bin/bash
 # Open a terminal on the local desktop with a broker command pre-typed; the user presses Enter.
-#   bin/broker-terminal google-card --site shop.example.com --card "My Visa" --last4 4242 --fill
+#   bin/broker-terminal otp --site bank.example.com --fill
 # Output (approval prompts + masked JSON result) is logged to spike-out/last-run.log,
 # except setup-* commands, which run unlogged.
 # Secrets typed at hidden prompts are never echoed, so they never reach the log.

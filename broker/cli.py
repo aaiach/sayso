@@ -1,7 +1,5 @@
 """User-run CLI, one subcommand per use case. Dry run unless --fill. Nothing is ever submitted.
 
-  python -m broker.cli google-card     --site shop.example.com --card "My Visa" --last4 4242 [--fill]
-  python -m broker.cli google-password --site app.example.com --username user@example.com [--fill]
   python -m broker.cli card            --site shop.example.com [--label "My Visa"] --fill
   python -m broker.cli cvc             --site shop.example.com [--label "My Visa ••4242"] --fill
   python -m broker.cli password        --site app.example.com [--username user@example.com] --fill
@@ -24,21 +22,18 @@ from .approval import TerminalApprover, setup
 from .approval.methods import METHODS
 from .browser import cdp, identity
 from .errors import BrokerError, masked
-from .flows import direct, google_cards, google_passwords, otp
+from .flows import direct, otp
 
 
 def _args():
     ap = argparse.ArgumentParser(prog="broker")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("google-card", "google-password", "card", "cvc", "password", "otp"):
+    for name in ("card", "cvc", "password", "otp"):
         p = sub.add_parser(name)
         p.add_argument("--site", required=True, help="top-level host of the open tab")
         p.add_argument("--fill", action="store_true", help="really fill (default: dry run)")
-        if name == "google-card":
-            p.add_argument("--card", required=True, help='label in Chrome, e.g. "My Visa"')
-            p.add_argument("--last4", required=True)
-        if name in ("google-password", "password"):
-            p.add_argument("--username", required=(name == "google-password"))
+        if name == "password":
+            p.add_argument("--username")
         if name in ("card", "cvc", "otp"):
             p.add_argument("--label", default="card")
         p.add_argument("--approval", choices=list(METHODS), default="validate",
@@ -65,10 +60,6 @@ async def _run(a) -> dict:
                            "sha256": ident.sha256[:16], "warnings": list(trust_store.warnings(ident))}
             return out
         approver = TerminalApprover(a.approval)
-        if a.cmd == "google-card":
-            return await google_cards.fill(page, a.card, a.last4, approver)
-        if a.cmd == "google-password":
-            return await google_passwords.fill(page, a.username, approver)
         if a.cmd == "card":
             return await direct.fill_card(page, approver, a.label)
         if a.cmd == "cvc":
@@ -80,10 +71,6 @@ async def _run(a) -> dict:
 
 async def _dry(page, a) -> dict:
     """Dry runs: everything up to (not including) committing a value."""
-    if a.cmd == "google-card":
-        return await google_cards.dry_run(page, a.card, a.last4)
-    if a.cmd == "google-password":
-        return await google_passwords.dry_run(page, a.username)
     if a.cmd == "otp":
         frame, boxes = await otp.find_boxes(page)
         return {"status": "dry_run_ok", "frame": cdp.host(frame.url), "boxes": len(boxes)}

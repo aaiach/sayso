@@ -70,62 +70,6 @@ async def to_screen(page, x: float, y: float) -> tuple[int, int]:
             int(g["sy"] + (g["oh"] - g["ih"]) - border + y * g["dpr"]))
 
 
-async def blur_all(page) -> None:
-    for f in page.frames:
-        try:
-            await f.evaluate("() => document.activeElement && document.activeElement.blur()")
-        except Exception:
-            pass
-
-
-_INERT_JS = """([x, y, w, h]) => {
-    const bad = 'a,button,input,select,textarea,label,iframe,[role],[onclick],[tabindex],summary';
-    const cands = [[x + w/2, y - 70], [x + w/2, y - 110], [x + w + 40, y + h/2], [x - 40, y + h/2],
-                   [x + w/2, y + h + 140], [x + w + 200, y + h/2], [x - 200, y + h/2], [20, 20]];
-    const out = [];
-    for (const [cx, cy] of cands) {
-        if (cx < 0 || cy < 0 || cx > innerWidth || cy > innerHeight) continue;
-        const el = document.elementFromPoint(cx, cy);
-        if (el && !el.closest(bad) && getComputedStyle(el).cursor !== 'pointer') out.push([cx, cy]);
-    }
-    return out; }"""
-
-
-async def inert_points_near(page, b: dict) -> list[tuple[float, float]]:
-    """Viewport points near box `b` verified to be non-interactive (safe to click), best first."""
-    return await page.evaluate(_INERT_JS, [b["x"], b["y"], b["width"], b["height"]])
-
-
-_EDITABLE_FOCUSED_JS = """() => { const e = document.activeElement;
-    return !!(document.hasFocus() && e && (e.tagName === 'INPUT' || e.tagName === 'TEXTAREA'
-              || e.tagName === 'SELECT' || e.isContentEditable)); }"""
-
-
-async def editable_focused(page) -> bool:
-    """True if keystrokes would land in a page field (any frame). Unreadable frames count
-    as focused. (document.hasFocus() alone stays true under Chrome's own prompts.)"""
-    for f in page.frames:
-        try:
-            if await f.evaluate(_EDITABLE_FOCUSED_JS):
-                return True
-        except Exception:
-            if not f.is_detached() and f.url.startswith("http"):
-                return True
-    return False
-
-
-async def frame_has_editable_focus(frame) -> bool:
-    try:
-        return await frame.evaluate(_EDITABLE_FOCUSED_JS)
-    except Exception:
-        return False
-
-
-async def is_focused(frame, locator) -> bool:
-    """True if `locator` is the focused element of a focused frame."""
-    return await locator.evaluate("e => document.hasFocus() && document.activeElement === e")
-
-
 async def masked(locator, last4: bool = False) -> dict:
     """Masked facts about a field's value. Never returns the value."""
     v = await locator.input_value()

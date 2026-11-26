@@ -17,7 +17,7 @@ from . import spec as sp
 from .approval import Approver, TerminalApprover
 from .browser import cdp, identity
 from .errors import BrokerError, masked
-from .flows import google_cards, google_passwords, user_secret
+from .flows import saved, user_secret
 
 
 class Expiring:
@@ -50,10 +50,8 @@ async def run(s: sp.FillSpec, approver: Approver) -> dict:
         if ident.host != s.site:
             raise BrokerError(f"tab is on {ident.host}, not {s.site}")
         sec, t = s.secret, s.tgt
-        if sec["from"] == "google_password":
-            return await google_passwords.fill(page, sec["username"], approver, t)
-        if sec["from"] == "google_card":
-            return await google_cards.fill(page, sec["card"], str(sec["last4"]), approver, t)
+        if sec["from"] in ("google_password", "google_card"):
+            return await saved.approve(page, approver, t, sec)
         return await user_secret.fill(page, approver, t, sec["what"], sp.label(s))
 
 

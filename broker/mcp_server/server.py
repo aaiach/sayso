@@ -19,13 +19,17 @@ TARGET_DOC = """target says where the secret goes (locations only, never code), 
   {"selector": "input[name=cardnumber]", "frame": "js.stripe.com"}   field inside an iframe
   {"focused": true}                            the field the agent just clicked (custom widgets)
   {"boxes": "input.otp-digit"}                 split code boxes, one character each (from=user codes)
+  {"chrome_prompt": true}                      Chrome's own "Enter the CVC" prompt you see open (from=user, cvc)
   {} or omitted                                standard field for that secret (autocomplete hints)"""
 
 SECRET_DOC = """secret says which secret, one of:
-  {"from": "google_password", "username": "user@example.com"}   Chrome's saved password, via autofill
-  {"from": "google_card", "card": "My Visa", "last4": "4242"}   Google Pay card, via Chrome autofill
   {"from": "user", "what": "one-time code" | "password" | "cvc" | "card_number" | "expiry"}
-                                                                 the user types it when approving"""
+      the user types it when approving; the broker types it into the target
+  {"from": "google_password", "username": "user@example.com"}
+  {"from": "google_card", "card": "My Visa", "last4": "4242"}
+      saved in Chrome: APPROVAL ONLY. On "approved", open Chrome's autofill on that field
+      yourself and pick exactly that entry. If Chrome then asks for the CVC, call again with
+      {"from": "user", "what": "cvc"} and target {"chrome_prompt": true}."""
 
 mcp = MCPServer("sayso", instructions=(
     "Fill passwords, one-time codes and cards without seeing them. You drive the page; call "
@@ -55,9 +59,9 @@ async def sayso_check(site: str, secret: dict, target: dict | None = None) -> di
 
 @mcp.tool(description="Fill ONE secret into ONE target on the open tab, after the user approves "
           "(one approval per call, ~2 min to answer). The broker re-checks the site and field, "
-          "types real keystrokes, and returns only a status: filled | partial | denied | timeout | "
-          "refused | needs_user | error, with a reason you can act on (e.g. retarget and retry). "
-          "It never submits.\n\n"
+          "types real keystrokes, and returns only a status: filled | partial | approved (Chrome-"
+          "saved secrets: you pick the entry) | denied | timeout | refused | error, with a reason "
+          "you can act on (e.g. retarget and retry). It never submits.\n\n"
           f"site: host of the open tab.\n{TARGET_DOC}\n{SECRET_DOC}\n"
           "label: what the user sees on the approval card (e.g. 'Example login, SMS code').\n"
           "approval: validate (one tap) | pin | otp (authenticator code).")

@@ -1,6 +1,6 @@
 """Real X11 input and screen capture. Knows nothing about Chrome or web pages.
 
-Tools: xdotool (windows, mouse, keyboard) and mss (screen capture). X11 only (blocked on
+Tools: xdotool (windows, mouse, keyboard). X11 only (blocked on
 Wayland). Input needs an unlocked desktop. Captures are on-screen pixels, so the window
 must be visible.
 """
@@ -72,16 +72,6 @@ def activate(win: Window) -> None:
 
 def active_pid() -> str:
     return _xdo("getactivewindow", "getwindowpid").stdout.strip()
-
-
-def screenshot(win: Window) -> bytes:
-    """PNG bytes of a window, in memory only: never written to disk, where other programs
-    (the agent included) could read what Chrome's popups show."""
-    import mss
-    import mss.tools
-    with mss.mss() as s:
-        img = s.grab({"left": win.x, "top": win.y, "width": win.width, "height": win.height})
-        return mss.tools.to_png(img.rgb, img.size)
 
 
 def click(x: int, y: int) -> None:

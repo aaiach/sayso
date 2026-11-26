@@ -1,5 +1,6 @@
 """A secret the user supplies at approval time (SMS code, password, CVC, card number, expiry),
-typed into the field the agent pointed at. One call = one secret = one approval."""
+typed into the field the agent pointed at, or into Chrome's own CVC prompt. One call = one
+secret = one approval."""
 from __future__ import annotations
 
 from ..approval import Approver
@@ -22,6 +23,10 @@ async def locate(page, t: tg.Target, what: str):
     if what not in WHAT:
         raise BrokerError(f"unknown secret {what!r} (choose from {', '.join(WHAT)})")
     kind, default = WHAT[what]
+    if t.chrome_prompt:
+        if what != "cvc":
+            raise BrokerError("chrome_prompt is only for the CVC Chrome asks for")
+        return page.main_frame, None, kind      # Chrome's UI, not a page field
     if t.boxes:
         if what != "one-time code":
             raise BrokerError("boxes are only for one-time codes")
@@ -38,7 +43,9 @@ async def fill(page, approver: Approver, t: tg.Target, what: str, label: str) ->
         return {"status": "denied"}
     secret = approver.secret(req, what)
     try:
-        if isinstance(field, list):
+        if t.chrome_prompt:
+            r = await write.type_in_chrome_prompt(page, secret, ident)
+        elif isinstance(field, list):
             r = await write.type_boxes(page, frame, field, secret, ident)
         else:
             r = await write.type_into(page, frame, field, secret, ident, click=not t.focused)

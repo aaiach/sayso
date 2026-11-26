@@ -2,7 +2,7 @@
 Same site and certificate as approved, empty field, real focus, then type. Returns masked facts."""
 from __future__ import annotations
 
-from ..browser import cdp, chrome_ui
+from ..browser import cdp, chrome_ui, focus
 from ..browser.identity import Identity
 from ..desktop import x11
 from ..errors import BrokerError
@@ -19,7 +19,7 @@ async def _focus(page, frame, locator, click: bool) -> None:
         if chrome_ui.dropdown():          # Chrome may offer autofill on click: close it, keep focus
             chrome_ui.dismiss()
             await page.wait_for_timeout(200)
-    if not await cdp.is_focused(frame, locator):
+    if not await focus.is_focused(frame, locator):
         raise BrokerError("field did not take focus" if click else "target is no longer focused")
 
 
@@ -48,10 +48,30 @@ async def type_boxes(page, frame, boxes: list, secret: str, ident: Identity) -> 
     n = len(secret)
     try:
         for i, ch in enumerate(secret):
-            await _focus(page, frame, boxes[i], click=not await cdp.is_focused(frame, boxes[i]))
+            await _focus(page, frame, boxes[i], click=not await focus.is_focused(frame, boxes[i]))
             x11.type_secret(ch)
             await page.wait_for_timeout(150)
     finally:
         secret = ch = None
     lengths = [(await cdp.masked(b))["length"] for b in boxes]
     return {"filled": all(x == 1 for x in lengths[:n]), "length": sum(lengths), "boxes": len(boxes)}
+
+
+async def type_in_chrome_prompt(page, secret: str, ident: Identity) -> dict:
+    """Chrome's own CVC prompt, which the agent has just seen open. Typed only if Chrome is the
+    active window and nothing in the page has focus (so neither the digits nor the Enter can
+    reach the page), then confirmed with Enter."""
+    await common.before_write(page, ident)
+    x11.activate(x11.main_window(cdp.browser_pid()))   # the approval window had the keyboard
+    await page.wait_for_timeout(500)
+    if not await chrome_ui.prompt_has_keyboard(page):
+        raise BrokerError("Chrome's prompt does not have the keyboard (Chrome not active, or "
+                          "something in the page has focus)")
+    n = len(secret)
+    try:
+        x11.type_secret(secret)
+    finally:
+        secret = None
+    x11.key("Return")
+    await page.wait_for_timeout(1500)
+    return {"filled": True, "length": n}
