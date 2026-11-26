@@ -1,8 +1,8 @@
 """Approval-method state: PIN hash, authenticator secret, failure counters. One JSON file, mode 0600.
 
-Not readable by the agent only once the broker runs as its own Unix user (planned). Until
-then this file is protected by convention, and a 4-digit PIN hash is cheap to brute-force
-offline, so the PIN only means something while this file stays private.
+Planned: move the secrets into the OS keyring (encrypted at rest). Like any desktop secret
+store, it doesn't stop other programs running as the same user; a 4-digit PIN hash is cheap to
+brute-force offline, so the PIN only means something while this state stays private.
 """
 from __future__ import annotations
 

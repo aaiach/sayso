@@ -42,5 +42,6 @@ Approval methods: `--approval validate` (one key), `pin` (`setup-pin` first) or 
 ## Security notes
 
 - Never commit `.env` or anything from the state directory; the repo's `.gitignore` covers both.
-- Until the broker runs as its own Unix user (next on the roadmap), an agent running as your
-  user could read the broker's state. Treat today's terminal approver as a safeguard, not a proof.
+- Like desktop password managers, sayso runs as your user and doesn't defend against hostile
+  code running as you. The terminal approver is a safeguard; phone approval (in progress) moves
+  the approval to a separate device.

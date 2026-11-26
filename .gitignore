@@ -9,6 +9,7 @@ approval.json
 
 # Internal working notes, local only.
 DESIGN.md
+SETUP.md
 
 # Local runs: screenshots and logs of real pages can show accounts and cards.
 spike-out/
