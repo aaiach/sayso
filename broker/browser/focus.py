@@ -47,12 +47,16 @@ async def editable_focused(page) -> bool:
     return False
 
 
+# A document keeps its activeElement even when it doesn't have the keyboard (e.g. while
+# Chrome's CVC prompt is open, a payment frame still lists its card field as active), so an
+# element only counts if its own document has focus.
 _NOTHING_FOCUSED_JS = """() => { const e = document.activeElement;
-    return !e || e === document.body || e === document.documentElement || e.tagName === 'IFRAME'; }"""
+    return !document.hasFocus() || !e || e === document.body || e === document.documentElement
+        || e.tagName === 'IFRAME'; }"""
 
 
 async def nothing_focused(page) -> bool:
-    """No field, button or link has focus in any frame (an Enter would do nothing).
+    """No field, button or link has the keyboard in any frame (an Enter would do nothing).
     Unreadable frames count as focused."""
     for f in page.frames:
         try:
