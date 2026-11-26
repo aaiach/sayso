@@ -1,0 +1,391 @@
+<title>Broker Approval Protocol</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&display=swap">
+<style>
+/* Layout: one technical reading column (~70ch) with wide figures that may scroll inside their own frames. */
+:root{
+  --bg:#f6f7f6; --surface:#ffffff; --fg:#17201d; --muted:#5a6661; --rule:#d5dbd8;
+  --trusted:#0f6e5c; --trusted-soft:#e1f0ec;
+  --untrusted:#a8641a; --untrusted-soft:#f8ecdc;
+  --agent:#4b5ea8; --agent-soft:#e7eaf6;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-display:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111614; --surface:#18201d; --fg:#e4ebe8; --muted:#9aa7a1; --rule:#2c3632;
+  --trusted:#4fc7ab; --trusted-soft:#16302a; --untrusted:#e2a35b; --untrusted-soft:#33261a;
+  --agent:#9aa9eb; --agent-soft:#1f2440; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111614; --surface:#18201d; --fg:#e4ebe8; --muted:#9aa7a1; --rule:#2c3632;
+  --trusted:#4fc7ab; --trusted-soft:#16302a; --untrusted:#e2a35b; --untrusted-soft:#33261a;
+  --agent:#9aa9eb; --agent-soft:#1f2440; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 var(--font-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 64px}
+main{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+.prose{max-width:70ch}
+h1,h2,h3{font-family:var(--font-display);font-weight:600;line-height:1.2;text-wrap:balance;margin:0}
+h1{font-size:2.1rem;letter-spacing:-.01em}
+h2{font-size:1.45rem;margin-bottom:10px}
+h3{font-size:1.05rem;margin:18px 0 6px}
+p{margin:0 0 10px}
+.eyebrow{font:500 .75rem/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.lede{color:var(--muted);font-size:1.05rem;max-width:68ch;margin-top:10px}
+code,.mono{font-family:var(--font-mono);font-size:.88em}
+code{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:0 4px}
+section{display:flex;flex-direction:column;gap:8px}
+figure{margin:6px 0 0;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:16px}
+.scroll{overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;min-width:640px;color:var(--fg)}
+figcaption{color:var(--muted);font-size:.92rem;margin-top:10px;max-width:80ch}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:.85rem;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.sw.t{background:var(--trusted-soft);border:1px solid var(--trusted)}
+.sw.u{background:var(--untrusted-soft);border:1px solid var(--untrusted)}
+.sw.a{background:var(--agent-soft);border:1px solid var(--agent)}
+ol,ul{margin:0;padding-left:1.3em}
+li{margin:4px 0}
+.steps li::marker{font-family:var(--font-mono);color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:.93rem}
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:8px;background:var(--surface)}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--rule)}
+th{font:500 .75rem/1.3 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+tr:last-child td{border-bottom:none}
+td:first-child{font-weight:500;min-width:170px}
+pre{margin:0;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;overflow-x:auto;font:13px/1.55 var(--font-mono)}
+.pill{display:inline-block;font:500 .72rem/1 var(--font-mono);padding:4px 7px;border-radius:999px;border:1px solid currentColor}
+.pill.risk{color:var(--untrusted)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.grid2>div{min-width:0}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:14px 16px}
+.src a{color:var(--trusted)}
+a{color:var(--trusted)}
+a:focus-visible{outline:2px solid var(--trusted);outline-offset:2px}
+/* SVG classes (styled from the page so both themes work) */
+.z-t{fill:var(--trusted-soft);stroke:var(--trusted)}
+.z-u{fill:var(--untrusted-soft);stroke:var(--untrusted)}
+.z-a{fill:var(--agent-soft);stroke:var(--agent)}
+.box{fill:var(--surface);stroke:var(--fg);stroke-width:1.2}
+.lane{stroke:var(--rule);stroke-width:1.5;stroke-dasharray:4 4}
+.ln{stroke:currentColor;stroke-width:1.4;fill:none}
+.ln-t{stroke:var(--trusted);stroke-width:1.8;fill:none}
+.ln-d{stroke:var(--muted);stroke-width:1.3;fill:none;stroke-dasharray:5 4}
+.tx{fill:currentColor;font:12.5px var(--font-body)}
+.tx-b{fill:currentColor;font:600 13.5px var(--font-body)}
+.tx-m{fill:var(--muted);font:11.5px var(--font-mono)}
+.tx-t{fill:var(--trusted);font:600 12px var(--font-body)}
+.tx-u{fill:var(--untrusted);font:600 12px var(--font-body)}
+.tx-a{fill:var(--agent);font:600 12px var(--font-body)}
+.ah{fill:currentColor}
+.ah-t{fill:var(--trusted)}
+.ah-d{fill:var(--muted)}
+.note{fill:var(--bg);stroke:var(--rule)}
+</style>
+
+<main>
+<header>
+  <div class="eyebrow">sayso · protocol v0.2 · draft 2026-11-26</div>
+  <h1>Broker Approval Protocol</h1>
+  <p class="lede">How you approve, from your phone, each time the broker fills a password, one-time code or card for an agent. A relay you host yourself carries the messages but can't read them and can't approve anything. Your answer (one tap, a PIN, or an authenticator code) is checked on your own machine.</p>
+</header>
+
+<section>
+  <h2>What changed from v0.1</h2>
+  <div class="prose"><ul>
+    <li><strong>No passkey.</strong> Approval is one of three methods: tap, PIN, or authenticator code. The broker checks the answer.</li>
+    <li><strong>Noise instead of HPKE + signatures.</strong> One standard handshake does encryption, authentication and binding of your answer to the request, with forward secrecy for everything you send.</li>
+    <li><strong>Keyless relay, for real.</strong> The broker sends push notifications itself, so the relay only stores and forwards ciphertext. Anyone can deploy one.</li>
+    <li><strong>Simpler pairing.</strong> A secret in the QR code authenticates the handshake, which replaces the commitment and 6-digit match.</li>
+  </ul></div>
+</section>
+
+<section>
+  <h2>Who holds what</h2>
+  <div class="prose"><p>Four parties, plus the phone vendor's push service. The design rests on where the keys are. The relay and the agent hold none.</p></div>
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 940 410" role="img" aria-label="Trust boundaries: the phone holds its Noise key P and pins the broker's key; the broker, running as its own Unix user, holds its key B, the PIN hash and the authenticator secret, and pins P; the self-hosted relay and the agent hold no keys. The broker wakes the phone through the push service directly.">
+      <defs>
+        <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+        <marker id="a1d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-d"/></marker>
+      </defs>
+      <rect x="20" y="20" width="430" height="370" rx="10" class="note" stroke-width="1.2"/>
+      <text x="36" y="44" class="tx-m">YOUR MACHINE (Linux today)</text>
+
+      <rect x="40" y="64" width="180" height="130" rx="8" class="z-a" stroke-width="1.4"/>
+      <text x="56" y="90" class="tx-a">AGENT (Claude, …)</text>
+      <text x="56" y="112" class="tx">Unix user: you</text>
+      <text x="56" y="132" class="tx">drives pages via CDP</text>
+      <text x="56" y="152" class="tx-m">keys: none</text>
+      <text x="56" y="172" class="tx-m">asks via MCP</text>
+
+      <rect x="40" y="250" width="180" height="104" rx="8" class="box"/>
+      <text x="56" y="276" class="tx-b">Browser profile</text>
+      <text x="56" y="298" class="tx">saved passwords</text>
+      <text x="56" y="318" class="tx">saved cards</text>
+      <text x="56" y="338" class="tx-m">shared with agent</text>
+
+      <rect x="250" y="64" width="180" height="300" rx="8" class="z-t" stroke-width="1.6"/>
+      <text x="266" y="90" class="tx-t">BROKER</text>
+      <text x="266" y="112" class="tx">Unix user: broker</text>
+      <text x="266" y="136" class="tx-m">B  (X25519 static)</text>
+      <text x="266" y="156" class="tx-m">PIN hash (scrypt)</text>
+      <text x="266" y="176" class="tx-m">authenticator secret</text>
+      <text x="266" y="196" class="tx-m">VAPID key (push)</text>
+      <text x="266" y="216" class="tx-m">pinned: P</text>
+      <text x="266" y="244" class="tx">checks your answer</text>
+      <text x="266" y="264" class="tx">checks site + cert</text>
+      <text x="266" y="284" class="tx">fills secrets</text>
+
+      <rect x="500" y="40" width="180" height="58" rx="8" class="note" stroke-width="1.2"/>
+      <text x="516" y="64" class="tx-b">Push service</text>
+      <text x="516" y="84" class="tx-m">Apple / Google</text>
+
+      <rect x="500" y="160" width="180" height="140" rx="8" class="z-u" stroke-width="1.6"/>
+      <text x="516" y="186" class="tx-u">RELAY (self-hosted)</text>
+      <text x="516" y="208" class="tx">serves the web app</text>
+      <text x="516" y="228" class="tx">mailboxes, 2-min TTL</text>
+      <text x="516" y="252" class="tx-m">keys: none</text>
+      <text x="516" y="272" class="tx-m">sees: ciphertext only</text>
+
+      <rect x="740" y="64" width="180" height="300" rx="8" class="z-t" stroke-width="1.6"/>
+      <text x="756" y="90" class="tx-t">PHONE</text>
+      <text x="756" y="112" class="tx">Home Screen web app</text>
+      <text x="756" y="136" class="tx-m">P  (X25519, WebCrypto,</text>
+      <text x="756" y="154" class="tx-m">    non-extractable)</text>
+      <text x="756" y="176" class="tx-m">pinned: B</text>
+      <text x="756" y="200" class="tx-m">authenticator app</text>
+      <text x="756" y="218" class="tx-m">  (separate, for otp)</text>
+      <text x="756" y="244" class="tx">shows the request</text>
+      <text x="756" y="264" class="tx">sends your answer</text>
+
+      <line x1="220" y1="128" x2="246" y2="128" class="ln" marker-end="url(#a1)"/>
+      <text x="223" y="120" class="tx-m">ask</text>
+      <line x1="250" y1="300" x2="224" y2="300" class="ln" marker-end="url(#a1)"/>
+      <text x="226" y="292" class="tx-m">fill</text>
+      <line x1="430" y1="84" x2="496" y2="70" class="ln-d" marker-end="url(#a1d)"/>
+      <text x="436" y="68" class="tx-m">wake</text>
+      <line x1="680" y1="70" x2="736" y2="84" class="ln-d" marker-end="url(#a1d)"/>
+      <line x1="430" y1="220" x2="496" y2="220" class="ln" marker-start="url(#a1)" marker-end="url(#a1)"/>
+      <text x="438" y="212" class="tx-m">WSS out</text>
+      <line x1="680" y1="240" x2="736" y2="240" class="ln" marker-start="url(#a1)" marker-end="url(#a1)"/>
+      <text x="686" y="232" class="tx-m">HTTPS</text>
+      <path d="M340 364 L340 382 L830 382 L830 364" class="ln-d" marker-end="url(#a1d)"/>
+      <text x="470" y="376" class="tx-m">pairing once: QR on your screen (holds key K)</text>
+    </svg>
+    </div>
+    <figcaption>The relay sits in the middle of every message but holds no key, so it can neither read requests nor answer them. The agent can ask the broker for a fill but can't approve. The broker wakes the phone through the push service with an empty "approval waiting" notice. The dashed bottom path is the one-time pairing, which gives the phone and the broker each other's keys without trusting the relay.</figcaption>
+    <div class="legend"><span><i class="sw t"></i>holds keys, trusted</span><span><i class="sw u"></i>untrusted transport</span><span><i class="sw a"></i>agent, no authority</span></div>
+  </figure>
+</section>
+
+<section>
+  <h2>One approval, step by step</h2>
+  <div class="prose"><p>Example: the agent reaches a bank's SMS-code page. Each approval is one Noise KK handshake of two messages. The request goes out in the first; your answer (and the SMS code) comes back in the second, encrypted under keys that depend on that exact request.</p></div>
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 940 730" role="img" aria-label="Sequence: the agent asks the broker; the broker checks the site, builds request R and sends Noise KK message 1 to the relay; it wakes the phone through the push service; the phone fetches and reads message 1, shows the request and you answer with a tap, PIN or authenticator code; the phone sends Noise KK message 2 with your answer and any secret; the relay forwards it; the broker reads it, checks your answer and re-checks the site, then fills and returns only a status.">
+      <defs>
+        <marker id="s1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+        <marker id="s2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-t"/></marker>
+        <marker id="s3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-d"/></marker>
+      </defs>
+      <rect x="40" y="16" width="140" height="34" rx="6" class="z-a" stroke-width="1.4"/><text x="110" y="38" class="tx-a" text-anchor="middle">Agent</text>
+      <rect x="270" y="16" width="140" height="34" rx="6" class="z-t" stroke-width="1.4"/><text x="340" y="38" class="tx-t" text-anchor="middle">Broker</text>
+      <rect x="520" y="16" width="140" height="34" rx="6" class="z-u" stroke-width="1.4"/><text x="590" y="38" class="tx-u" text-anchor="middle">Relay</text>
+      <rect x="760" y="16" width="140" height="34" rx="6" class="z-t" stroke-width="1.4"/><text x="830" y="38" class="tx-t" text-anchor="middle">Phone</text>
+      <line x1="110" y1="50" x2="110" y2="714" class="lane"/>
+      <line x1="340" y1="50" x2="340" y2="714" class="lane"/>
+      <line x1="590" y1="50" x2="590" y2="714" class="lane"/>
+      <line x1="830" y1="50" x2="830" y2="714" class="lane"/>
+
+      <line x1="110" y1="84" x2="336" y2="84" class="ln" marker-end="url(#s1)"/>
+      <text x="120" y="76" class="tx">1  fill otp · field ref (no value)</text>
+
+      <rect x="352" y="100" width="226" height="80" rx="6" class="note" stroke-width="1"/>
+      <text x="362" y="120" class="tx">2  check site, cert, frame</text>
+      <text x="362" y="138" class="tx-m">R = {id, site, cert_fp, kind,</text>
+      <text x="362" y="154" class="tx-m">  item, approve_with: "pin",</text>
+      <text x="362" y="170" class="tx-m">  needs_secret, expires}</text>
+
+      <line x1="340" y1="214" x2="586" y2="214" class="ln" marker-end="url(#s1)"/>
+      <text x="350" y="206" class="tx">3  KK msg 1: e, es, ss + R</text>
+
+      <path d="M340 246 L830 246" class="ln-d" marker-end="url(#s3)"/>
+      <text x="350" y="240" class="tx-m">4  Web Push via Apple/Google: "approval waiting" (no details)</text>
+
+      <line x1="830" y1="290" x2="594" y2="290" class="ln" marker-end="url(#s1)"/>
+      <text x="606" y="282" class="tx">5  fetch msg 1 (mailbox)</text>
+
+      <rect x="600" y="306" width="220" height="62" rx="6" class="note" stroke-width="1"/>
+      <text x="610" y="326" class="tx">6  read msg 1: from pinned B ✓</text>
+      <text x="610" y="344" class="tx">show site, cert, item,</text>
+      <text x="610" y="360" class="tx">warnings; check expiry</text>
+
+      <rect x="600" y="376" width="220" height="80" rx="6" class="z-t" stroke-width="1.4"/>
+      <text x="610" y="396" class="tx-t">7  you answer</text>
+      <text x="610" y="414" class="tx-m">tap Approve, or PIN,</text>
+      <text x="610" y="430" class="tx-m">or authenticator code</text>
+      <text x="610" y="446" class="tx-m">+ SMS code if needed</text>
+
+      <line x1="830" y1="488" x2="594" y2="488" class="ln" marker-end="url(#s1)"/>
+      <text x="606" y="480" class="tx">8  KK msg 2: e, ee, se + answer</text>
+
+      <line x1="590" y1="522" x2="344" y2="522" class="ln" marker-end="url(#s1)"/>
+      <text x="356" y="514" class="tx">9  forwarded unchanged</text>
+
+      <rect x="352" y="538" width="226" height="96" rx="6" class="z-t" stroke-width="1.4"/>
+      <text x="362" y="558" class="tx-t">10  read msg 2</text>
+      <text x="362" y="576" class="tx-m">from pinned P ✓ bound to R ✓</text>
+      <text x="362" y="592" class="tx-m">answer ok for approve_with ✓</text>
+      <text x="362" y="608" class="tx-m">id unused ✓ not expired ✓</text>
+      <text x="362" y="624" class="tx-m">site + cert_fp still match ✓</text>
+
+      <line x1="340" y1="662" x2="114" y2="662" class="ln-t" marker-end="url(#s2)"/>
+      <text x="124" y="654" class="tx-t">11  fill, then status only</text>
+      <text x="124" y="680" class="tx-m">{"status":"filled"}</text>
+
+      <line x1="340" y1="702" x2="826" y2="702" class="ln-d"/>
+      <text x="600" y="696" class="tx-m">12  result to phone (encrypted)</text>
+    </svg>
+    </div>
+    <figcaption>Steps 7 and 10 are the core. Your answer travels in message 2, whose encryption key derives from a hash of the whole handshake, request R included. The broker can only read it as an answer to <em>this</em> request, so it can't be moved to another site, card or request. The relay sees steps 3, 5, 8 and 9 only as ciphertext. The agent sees step 1 and step 11 and nothing in between.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>The three approval methods</h2>
+  <div class="prose"><p>The broker chooses the method and writes it into the request (<code>approve_with</code>). Which method applies to which request is not decided yet. For now it's a setting per fill, and a risk policy can choose it later. The phone can't downgrade: the broker checks the answer against the method it asked for.</p></div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Method</th><th>You do</th><th>Sent in message 2</th><th>Broker checks</th><th>If the relay's app code were tampered with</th></tr></thead>
+    <tbody>
+      <tr><td>validate</td><td>tap Approve</td><td><code>decision: approve</code></td><td>message came from your paired phone, for this request</td><td>The code could approve without you: it can't copy key P, but it can use it</td></tr>
+      <tr><td>pin</td><td>type your PIN</td><td>+ PIN</td><td>scrypt hash; locks after 5 wrong in a row</td><td>Captures your PIN the first time you type it, then same as validate</td></tr>
+      <tr><td>otp</td><td>type the code from your authenticator app</td><td>+ 6-digit code</td><td>RFC 6238, ±30 s, each code once; locks after 5 wrong</td><td>Can't make codes. It could only misuse one code you type, for one request</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2>Pairing, once</h2>
+  <div class="grid2">
+    <div class="card">
+      <ol class="steps">
+        <li>On your machine, run <code>broker pair --relay https://your-relay</code>. It shows a QR code holding the relay URL, a random mailbox ID, the broker's public key <code>B</code>, and a random 256-bit key <code>K</code>. <code>K</code> sits after the <code>#</code>, which browsers never send to a server.</li>
+        <li>Scan it with the phone camera and add the page to the Home Screen.</li>
+        <li>The web app creates <code>P</code>, a non-extractable X25519 key kept in the browser. It runs a Noise <code>XXpsk3</code> handshake with the broker through the relay, using <code>K</code> as the pre-shared key. Its last message carries the device name and the push subscription.</li>
+        <li>Your machine asks "Pair <em>iPhone</em> (key <span class="mono">ab12 cd34</span>)? y". On yes, the broker pins <code>P</code> and the phone pins <code>B</code>.</li>
+      </ol>
+    </div>
+    <div class="card prose">
+      <p><strong>Why it resists a man in the middle:</strong> the handshake only completes for someone who knows <code>K</code>. <code>K</code> travels optically from your screen to the camera and never reaches the relay, so a relay that substitutes its own keys fails the handshake. This also removes v0.1's 6-digit match and the commitment it needed against code-guessing.</p>
+      <p><strong>Assumption:</strong> only you see the QR code: on the machine's own screen, or through your encrypted remote-desktop session. It's valid for 2 minutes and works once.</p>
+      <p><strong>Lost phone:</strong> run <code>broker revoke</code>, then pair the new phone. A stolen phone still needs your PIN or authenticator code for requests that ask for one.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Message formats</h2>
+<pre>suite     Noise_XXpsk3_25519_AESGCM_SHA256      pairing, once
+          Noise_KK_25519_AESGCM_SHA256          each approval (both static keys pinned)
+          X25519 · AES-256-GCM · SHA-256: native in WebCrypto and Python; noble fallback
+
+R  = { v:2, id:uuid, site:"bank.example.com", cert_sha256:"9f2c41d0…", frame:"bank.example.com",
+       kind:"otp"|"password"|"card"|"cvc", item:"Bank SMS code", amount:null,
+       warnings:["first time on this site"], approve_with:"validate"|"pin"|"otp",
+       needs_secret:"one-time code"|null, created:t, expires:t+120s }
+
+msg 1  broker → phone   KK  -> e, es, ss   payload = JCS(R)            # RFC 8785 canonical JSON
+msg 2  phone → broker   KK  <- e, ee, se   payload = JCS({ id, decision:"approve"|"deny",
+                                                       answer: null | pin | totp,
+                                                       secret: null | "…" })
+relay envelope          { mailbox: 16B random, n: 1|2, noise: bytes }   # all the relay sees
+
+pairing  XXpsk3 (phone starts):  -> e   <- e, ee, s, es   -> s, se, psk     psk = K (QR #fragment)
+         msg 3 payload = { device_name, push_subscription }
+push     RFC 8291 Web Push, payload "approval waiting", VAPID (RFC 8292) key on the broker,
+         sent by the broker straight to Apple/Google: the relay is not involved
+outer    TLS 1.3 to the relay (defence in depth only)</pre>
+  <div class="prose">
+  <p><strong>Why the answer can't be moved to another request:</strong> Noise derives every message key from a running hash of the handshake, request R included. Message 2 only decrypts for the broker's state for this one request. That is the job the passkey challenge did in v0.1.</p>
+  <p><strong>Why a secret can't be swapped in:</strong> message 2 is authenticated with your phone's key (<code>se</code>), so the relay can't insert its own password or card.</p>
+  <p><strong>Forward secrecy:</strong> message 2 (your answer, PIN or code, and any secret) is encrypted with fresh keys on both sides (<code>ee</code>), so a key stolen later can't decrypt it. Message 1 has weaker forward secrecy, a known property of Noise KK's first message, but it carries no secrets.</p>
+  <p><strong>Replay:</strong> the broker keeps one handshake state per request and drops it after the answer or 2 minutes, so a replayed message 2 matches nothing. The phone ignores expired or already-seen requests.</p>
+  </div>
+</section>
+
+<section>
+  <h2>What each property rests on</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Property</th><th>Mechanism</th><th>Inspired by</th></tr></thead>
+    <tbody>
+      <tr><td>Only your phone can answer</td><td>Message 2 is authenticated with the phone's key P, pinned at pairing</td><td>Noise KK mutual authentication</td></tr>
+      <tr><td>You approve what you saw</td><td>The answer's encryption is bound to the handshake hash, which covers request R</td><td>PSD2 dynamic linking, channel binding</td></tr>
+      <tr><td>The answer proves the method</td><td>The broker checks the PIN or code against its own hash or secret, for the method it asked for</td><td>Server-side verification (TOTP, RFC 6238)</td></tr>
+      <tr><td>Relay can't read</td><td>Every payload is Noise-encrypted; the relay sees a mailbox ID and sizes</td><td>Noise (WireGuard, WhatsApp)</td></tr>
+      <tr><td>Relay can't alter or invent a request</td><td>Message 1 is authenticated with the broker's key B, pinned on the phone</td><td>Key pinning</td></tr>
+      <tr><td>Relay can't approve</td><td>It holds no keys; answers are checked only on your machine</td><td>Keyless relay</td></tr>
+      <tr><td>No replay</td><td>One handshake per request, 2-minute expiry, each authenticator code used once</td><td>Noise ephemeral keys, TOTP</td></tr>
+      <tr><td>Answers stay secret later</td><td>Fresh ephemeral keys on both sides for message 2</td><td>Noise forward secrecy</td></tr>
+      <tr><td>Page unchanged since approval</td><td>Site and certificate fingerprint re-checked right before filling</td><td>TLS identity, trust on first use</td></tr>
+      <tr><td>The agent can't approve</td><td>The broker runs as another Unix user; the agent holds no keys and can't edit the broker</td><td>Privilege separation</td></tr>
+      <tr><td>No man-in-the-middle at pairing</td><td>Handshake keyed with K from the QR code, never sent to the relay, plus a yes on your machine</td><td>Noise PSK modes, QR device linking (Signal, WhatsApp)</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2>What it doesn't protect against</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Risk</th><th>Why</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill risk">relay code</span> A tampered relay deploy</td><td>The relay serves the web app's code. Malicious code could show one site while answering for another, or approve tap-level requests by itself (see the methods table).</td><td>Deploy pinned release images from the public repo; optionally host the app separately as static files from a release, so the relay server alone can't change it; use <code>otp</code> for cards and banks; hard floors cap the damage</td></tr>
+      <tr><td><span class="pill risk">pairing</span> Someone else sees the QR code</td><td>K would let them pair their own phone</td><td>QR valid 2 minutes, single use; yes on your machine with the key fingerprint; <code>broker devices</code> and <code>broker revoke</code></td></tr>
+      <tr><td><span class="pill risk">accepted</span> The agent reads a filled field</td><td>It shares the browser profile, so it could read a field after the broker fills it</td><td>Accepted on 2026-11-26; prefer one-time codes and capped virtual cards</td></tr>
+      <tr><td><span class="pill risk">user</span> Approving without reading</td><td>The phone shows the truth; it can't make you read it</td><td>First-visit and new-certificate warnings, a short expiry</td></tr>
+      <tr><td><span class="pill risk">host</span> Root access on your machine</td><td>An attacker with root controls everything local</td><td>Out of scope; keep the machine patched and locked</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2>Run your own</h2>
+  <div class="prose">
+  <ol class="steps">
+    <li><strong>Deploy the relay:</strong> a small Docker image with one-click templates (Railway first, then Fly and Render), or <code>docker run</code>. No secrets to configure, no database: mailboxes live in memory for 2 minutes.</li>
+    <li><strong>Pair:</strong> <code>broker pair --relay https://your-relay</code>, scan the QR code, add it to the Home Screen, press y.</li>
+    <li><strong>Connect your agent:</strong> it calls the broker over MCP. It never talks to the relay or the phone.</li>
+  </ol>
+  <p>Today the broker runs on Linux (X11) with Chrome. macOS and other browsers fit behind the same interfaces later. The protocol doesn't depend on them.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Hard floors, never filled even with approval</h2>
+  <div class="prose"><p>Changing passwords, moving money between accounts, adding payees, and pressing Pay or Submit. These follow OpenAI Dots and Claude Duet, which keep the same actions for the human. The broker refuses them, and pressing Pay stays a separate yes from you.</p></div>
+</section>
+
+<section class="src">
+  <h2>Standards and references</h2>
+  <ul>
+    <li><a href="https://noiseprotocol.org/noise.html" target="_blank" rel="noopener">The Noise Protocol Framework</a>: patterns KK and XX, PSK modes, payload security properties</li>
+    <li><a href="https://noiseexplorer.com/" target="_blank" rel="noopener">Noise Explorer</a>: formal analysis of Noise patterns</li>
+    <li><a href="https://github.com/plizonczyk/noiseprotocol" target="_blank" rel="noopener">noiseprotocol</a> (Python) and <a href="https://wicg.github.io/webcrypto-secure-curves/" target="_blank" rel="noopener">WebCrypto Secure Curves</a> (X25519 in browsers)</li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc8291" target="_blank" rel="noopener">RFC 8291: Web Push encryption</a> and <a href="https://www.rfc-editor.org/rfc/rfc8292" target="_blank" rel="noopener">RFC 8292: VAPID</a></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc6238" target="_blank" rel="noopener">RFC 6238: TOTP</a> and <a href="https://www.rfc-editor.org/rfc/rfc8785" target="_blank" rel="noopener">RFC 8785: JSON canonicalization</a></li>
+    <li><a href="https://www.twilio.com/en-us/blog/insights/compliance/dynamic-linking-psd2" target="_blank" rel="noopener">PSD2 dynamic linking</a>, plus the <a href="https://www.eba.europa.eu/single-rule-book-qa/qna/view/publicId/2020_5133" target="_blank" rel="noopener">EBA Q&amp;A</a></li>
+    <li><a href="https://support.1password.com/1password-claude-security/" target="_blank" rel="noopener">1Password for Claude security model</a>: a separate approval UI, with local filling</li>
+    <li><a href="https://openai.com/index/how-we-build-safety-security-and-privacy-into-dots/" target="_blank" rel="noopener">OpenAI Dots safety design</a> and <a href="https://claude.com/product/claude-duet" target="_blank" rel="noopener">Claude Duet</a>: approvals and hard floors</li>
+  </ul>
+</section>
+</main>

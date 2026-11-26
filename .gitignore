@@ -1,0 +1,19 @@
+# Per-instance settings and anything secret: never committed (Kerckhoffs: only keys are secret).
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+known_sites.json
+approval.json
+
+# Internal working notes, local only.
+DESIGN.md
+
+# Local runs: screenshots and logs of real pages can show accounts and cards.
+spike-out/
+*.log
+
+__pycache__/
+*.pyc
+.venv/
