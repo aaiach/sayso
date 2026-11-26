@@ -1,10 +1,11 @@
 // sayso phone app: screens and wiring. Pairing in pair.js, approvals in approve.js.
 import { listen, pollNow } from "./approve.js";
+import { build } from "./ask.js";
 import { pair, parse, subscribe } from "./pair.js";
 import * as store from "./store.js";
 import { native } from "./x25519.js";
 
-const VERSION = "3";                          // shown on screen, to tell which app build is running
+const VERSION = "4";                          // shown on screen, to tell which app build is running
 const $ = (id) => document.getElementById(id);
 const show = (id, on = true) => $(id).classList.toggle("hidden", !on);
 const status = (t) => { $("status").textContent = t; };
@@ -21,15 +22,27 @@ const ui = {
     $("r-frame").textContent = R.frame === R.site ? "" : `field inside ${R.frame}`;
     $("r-cert").textContent = R.certificate;
     $("r-warn").replaceChildren(...R.warnings.map((w) => Object.assign(document.createElement("li"), { textContent: w })));
+    let typed = null;
+    const asks = R.asks || [];
+    const ready = () => { $("approve").disabled = !!typed && !typed.valid(); };
+    typed = asks.length ? build($("r-ask"), asks, ready) : null;
+    if (!typed) $("r-ask").replaceChildren();
+    ready();
     show("card");
     if (navigator.vibrate) navigator.vibrate(200);
-    const finish = (d) => { clearInterval(tick); show("card", false); resolve(d); };
+    const finish = (decision) => {
+      clearInterval(tick);
+      const secrets = decision === "approve" && typed ? typed.values() : null;
+      typed?.clear();                                    // nothing typed stays on screen
+      show("card", false);
+      resolve(decision && { decision, secrets });
+    };
     const tick = setInterval(() => {
       const left = Math.round(R.expires - Date.now() / 1000);
       $("r-time").textContent = `${Math.max(left, 0)} s left`;
       if (left <= 0) finish(null);
     }, 500);
-    $("approve").onclick = () => finish("approve");
+    $("approve").onclick = () => { if (!typed || typed.valid()) finish("approve"); };
     $("deny").onclick = () => finish("deny");
   }),
 };

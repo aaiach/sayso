@@ -23,7 +23,8 @@ CARD_CVC = 'input[autocomplete="cc-csc"]'
 async def fill_password(page, approver: Approver, username: str | None = None) -> dict:
     """Type a password supplied by the approver; also the username if given (not secret)."""
     frame, pw = await cdp.find_field(page, PASSWORD, "password")
-    req, ident = await common.request(page, frame, "password", username or cdp.host(page.url))
+    req, ident = await common.request(page, frame, "password", username or cdp.host(page.url),
+                                      (("password", None),))
     if not common.approve(approver, req, ident):
         return {"status": "denied"}
     secret = approver.secret(req, "password")
@@ -42,7 +43,8 @@ async def fill_password(page, approver: Approver, username: str | None = None) -
 async def fill_card(page, approver: Approver, label: str = "card") -> dict:
     """Type card number, expiry and CVC supplied by the approver."""
     frame, number = await cdp.find_field(page, CARD_NUMBER, "card")
-    req, ident = await common.request(page, frame, "card", label)
+    req, ident = await common.request(page, frame, "card", label,
+                                      (("card_number", None), ("expiry", None), ("cvc", None)))
     if not common.approve(approver, req, ident):
         return {"status": "denied"}
     values = {w: approver.secret(req, w) for w in ("card_number", "expiry", "cvc")}
@@ -67,7 +69,8 @@ async def fill_cvc(page, approver: Approver, label: str = "card",
     if approved:
         ident, secret = approved
     else:
-        req, ident = await common.request(page, frame, "cvc", label)
+        req, ident = await common.request(page, frame, "cvc", label,
+                                          (("cvc", await common.length_hint(loc)),))
         if not common.approve(approver, req, ident):
             return {"status": "denied"}
         secret = approver.secret(req, "cvc")

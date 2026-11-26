@@ -44,7 +44,8 @@ async def fill_otp(page, approver: Approver, label: str = "one-time code") -> di
     frame, boxes = await find_boxes(page)
     if any([(await cdp.masked(b))["filled"] for b in boxes]):
         raise BrokerError("code field already has a value")
-    req, ident = await common.request(page, frame, "otp", label)
+    req, ident = await common.request(page, frame, "otp", label,
+                                      (("one-time code", await common.length_hint(boxes)),))
     if not common.approve(approver, req, ident):
         return {"status": "denied"}
     secret = approver.secret(req, "one-time code")

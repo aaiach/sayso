@@ -26,3 +26,20 @@ button.link { background: none; border: none; color: var(--muted); text-decorati
   min-height: 0; align-self: flex-start; }
 button:disabled { opacity: .5; }
 #pair { display: flex; flex-direction: column; gap: 10px; }
+/* typed secrets */
+#r-ask { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; }
+.ask { display: flex; flex-direction: column; gap: 6px; }
+.ask input { font: 500 1.2rem/1.2 ui-monospace, Menlo, monospace; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--fg); width: 100%; min-height: 50px; }
+.ask input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.code { position: relative; align-self: flex-start; width: 100%; max-width: calc(var(--n, 6) * 60px); }
+.boxes { display: flex; gap: 8px; justify-content: flex-start; }
+.boxes span { flex: 1; max-width: 52px; min-width: 0; height: 58px; display: grid; place-items: center; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--bg); font: 600 1.5rem ui-monospace, Menlo, monospace; }
+.boxes span.at { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.ask input.overlay { position: absolute; inset: 0; opacity: 0.01; color: transparent; caret-color: transparent;
+  background: transparent; border: none; font-size: 16px; }
+.extras { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.extras:has(> .hint:empty):not(:has(button)) { display: none; }
+.ask input.spaced { letter-spacing: .08em; }
+.extras .link { font-size: .85rem; }

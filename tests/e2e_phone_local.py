@@ -3,6 +3,7 @@ PhoneApprover, with a throwaway keyring entry. Needs Chrome (BROKER_TEST_CHROME)
 
   python tests/e2e_phone_local.py
 """
+import dataclasses
 import os
 import subprocess
 import sys
@@ -37,6 +38,31 @@ def answer_on_phone(page, button):
     return shown
 
 
+TYPED = [   # (asks, what the user types on the phone, what the broker must get)
+    ((("one-time code", 6),), ["482913"], {"one-time code": "482913"}),
+    ((("password", None),), ["correct horse!"], {"password": "correct horse!"}),
+    ((("card_number", None), ("expiry", None), ("cvc", 3)), ["4242424242424242", "1229", "123"],
+     {"card_number": "4242424242424242", "expiry": "12/29", "cvc": "123"}),
+]
+
+
+def typed_on_phone(page, asks, entries):
+    """Approve a request that asks for secrets, typing them on the phone like a user."""
+    req = dataclasses.replace(REQ, asks=asks)
+    ap = PhoneApprover()
+    t, res = in_thread(lambda: ap.approve(req))
+    page.wait_for_selector("#card:not(.hidden)", timeout=20000)
+    assert page.is_disabled("#approve"), "Approve must wait for the typed secret"
+    boxes = page.locator("#r-ask .boxes span").count()
+    for i, text in enumerate(entries):
+        page.locator("#r-ask input").nth(i).click()
+        page.keyboard.type(text)
+    page.click("#approve")
+    t.join(30)
+    got = {w: ap.secret(req, w) for w, _ in asks}
+    return res["r"], got, boxes
+
+
 def main():
     relay = subprocess.Popen([sys.executable, "-m", "uvicorn", "relay.app:app", "--port", "8787", "--log-level",
                               "warning"], cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -64,6 +90,12 @@ def main():
                 t.join(30)
                 print(f"{button}: approver returned {res['r']} | phone showed {shown}")
                 assert res["r"] is expect and shown["site"] == "app.example.com"
+            for asks, entries, expect in TYPED:
+                ok, got, boxes = typed_on_phone(phone, asks, entries)
+                print(f"typed {[w for w, _ in asks]}: approved={ok}, values match={got == expect}, "
+                      f"boxes shown={boxes}")
+                assert ok is True and got == expect
+                assert phone.locator("#r-ask input").count() == 0, "typed values must not stay on screen"
             print("phone notice:", phone.text_content("#notice"))
             browser.close()
         print("end-to-end phone checks passed")

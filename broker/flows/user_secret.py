@@ -38,7 +38,8 @@ async def locate(page, t: tg.Target, what: str):
 
 async def fill(page, approver: Approver, t: tg.Target, what: str, label: str) -> dict:
     frame, field, kind = await locate(page, t, what)
-    req, ident = await common.request(page, frame, kind, label)
+    hint = await common.length_hint(field) if what in ("one-time code", "cvc") else None
+    req, ident = await common.request(page, frame, kind, label, ((what, hint),))
     if not common.approve(approver, req, ident):
         return {"status": "denied"}
     secret = approver.secret(req, what)

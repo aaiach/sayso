@@ -20,10 +20,14 @@ async function handle(pairing, env, ui) {
   }
   if (R.id !== env.id) return;
   if (R.expires * 1000 < Date.now()) return ui.notice("A request arrived after it had expired.");
-  const decision = await ui.ask(R);                  // "approve" | "deny" | null (expired)
+  const got = await ui.ask(R);         // {decision: "approve" | "deny", secrets} | null (expired)
   await store.set("seen", [...seen.slice(-50), R.id]);
-  if (!decision) return ui.notice("That request expired.");
-  const answer = await hs.write(te.encode(JSON.stringify({ id: R.id, decision })));
+  if (!got) return ui.notice("That request expired.");
+  const { decision } = got;
+  // Typed secrets travel only inside this Noise message, readable by the paired computer alone.
+  const answer = await hs.write(te.encode(JSON.stringify(
+    { id: R.id, decision, ...(got.secrets ? { secrets: got.secrets } : {}) })));
+  got.secrets = null;
   await relay.put(pairing.box, "ans", relay.envelope(R.id, answer));
   ui.notice(decision === "approve" ? `Approved: ${R.item} on ${R.site}` : "Denied.");
 }

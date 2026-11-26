@@ -16,6 +16,7 @@ class Request:
     amount: str | None = None
     certificate: str = ""     # "<subject> by <issuer>, sha256 <fp…>" as Chrome sees it
     warnings: tuple[str, ...] = ()   # from trust_store (first visit, new cert, other issuer)
+    asks: tuple[tuple[str, int | None], ...] = ()   # secrets the user types: (what, length hint)
 
 
 # AZERTY (fr / fr-mac) top row without Shift -> digits, so numeric codes can be typed either way.

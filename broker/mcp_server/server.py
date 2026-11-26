@@ -86,15 +86,14 @@ async def sayso_fill(site: str, secret: dict, target: dict | None = None, label:
 
 
 def _on_phone(s: sp.FillSpec) -> bool:
-    """auto: the paired phone for one-tap approvals of Chrome-saved secrets (nothing to type);
-    the desktop window for PIN / authenticator approvals and secrets the user types."""
+    """auto: the paired phone for one-tap approvals, including secrets the user types there;
+    the desktop window for PIN / authenticator approvals."""
     if config.APPROVER == "terminal":
         return False
     if config.APPROVER == "phone":
         return True
     from ..phone import keys
-    return (bool(config.RELAY_URL) and keys.device() is not None and s.approval == "validate"
-            and s.secret["from"] in ("google_password", "google_card"))
+    return bool(config.RELAY_URL) and keys.device() is not None and s.approval == "validate"
 
 
 @mcp.tool(description="Which approval methods are ready (validate, pin, otp).")
