@@ -10,7 +10,9 @@ import asyncio
 
 from mcp.server.mcpserver import MCPServer
 
-from .. import inspect_target, spec as sp
+import time
+
+from .. import config, inspect_target, runner, spec as sp
 from ..approval import setup, window
 from ..errors import BrokerError, masked
 
@@ -72,7 +74,27 @@ async def sayso_fill(site: str, secret: dict, target: dict | None = None, label:
     except BrokerError as e:
         return {"status": "refused", "reason": str(e)}
     async with _one_at_a_time:
-        return await asyncio.to_thread(window.run, s.to_dict())
+        if not _on_phone(s):
+            return {**await asyncio.to_thread(window.run, s.to_dict()), "approved_on": "desktop window"}
+        from ..phone.approver import PhoneApprover
+        try:
+            approver = runner.Expiring(PhoneApprover(s.approval), time.time() + 170)
+        except BrokerError as e:
+            return {"status": "refused", "reason": str(e)}
+        out = await asyncio.to_thread(lambda: asyncio.run(runner.execute(s, approver)))
+        return {**out, "approved_on": "phone", "push": approver.inner.push_status}
+
+
+def _on_phone(s: sp.FillSpec) -> bool:
+    """auto: the paired phone for one-tap approvals of Chrome-saved secrets (nothing to type);
+    the desktop window for PIN / authenticator approvals and secrets the user types."""
+    if config.APPROVER == "terminal":
+        return False
+    if config.APPROVER == "phone":
+        return True
+    from ..phone import keys
+    return (bool(config.RELAY_URL) and keys.device() is not None and s.approval == "validate"
+            and s.secret["from"] in ("google_password", "google_card"))
 
 
 @mcp.tool(description="Which approval methods are ready (validate, pin, otp).")

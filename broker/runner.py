@@ -55,6 +55,17 @@ async def run(s: sp.FillSpec, approver: Approver) -> dict:
         return await user_secret.fill(page, approver, t, sec["what"], sp.label(s))
 
 
+async def execute(s: sp.FillSpec, approver: Approver) -> dict:
+    """run(), with errors turned into a status: BrokerError reasons are shown, anything else
+    only by type (secrets may be in scope)."""
+    try:
+        return await run(s, approver)
+    except BrokerError as e:
+        return {"status": "refused", "reason": str(e)}
+    except Exception as e:
+        return {"status": "error", "reason": masked(e)}
+
+
 def _write(path: str, out: dict) -> None:
     fd = os.open(path + ".tmp", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as f:
@@ -71,7 +82,7 @@ def main(spec_path: str, result_path: str, deadline: str = "") -> None:
         s = sp.parse(raw)
         print(f"sayso: {s.secret['from']} on {s.site} ({sp.label(s)})")
         approver = Expiring(TerminalApprover(s.approval), float(deadline or started + 170))
-        out = asyncio.run(run(s, approver))
+        out = asyncio.run(execute(s, approver))
     except BrokerError as e:
         out = {"status": "refused", "reason": str(e)}
     except KeyboardInterrupt:

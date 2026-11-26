@@ -13,7 +13,7 @@ CMD="$PY -m broker.cli $(printf '%q ' "$@")"
 LOG="$HERE/spike-out/last-run.log"
 mkdir -p "$HERE/spike-out"; rm -f "$LOG"
 # setup-* shows the authenticator key / asks for a new PIN: run it unlogged.
-case "$1" in setup-*) RUN='eval "$line"'; LOG="(not logged)";;
+case "$1" in setup|setup-*|pair) RUN='eval "$line"'; LOG="(not logged)";;
              *) RUN="script -q -e -c \"\$line\" $(printf '%q' "$LOG")";; esac
 INNER=$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/broker-run.XXXXXX")
 cat > "$INNER" <<INNER

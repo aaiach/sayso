@@ -39,3 +39,9 @@ TRUST_STORE = _path("BROKER_TRUST_STORE", str(STATE_DIR / "known_sites.json"))
 # Per-instance secrets (PIN hash, authenticator secret, later pairing keys): see vault.py.
 SECRET_BACKEND = os.environ.get("BROKER_SECRET_BACKEND", "keyring")
 KEYRING_SERVICE = os.environ.get("BROKER_KEYRING_SERVICE", "sayso")
+
+# Phone approval: your self-hosted relay, and which approver to use:
+#   auto (default): the paired phone for Chrome-saved secrets, the desktop window otherwise
+#   phone / terminal: always that one
+RELAY_URL = os.environ.get("BROKER_RELAY_URL", "")
+APPROVER = os.environ.get("BROKER_APPROVER", "auto")

@@ -1,0 +1,11 @@
+{
+  "name": "sayso",
+  "short_name": "sayso",
+  "description": "Approve your agents' logins and payments",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#111614",
+  "theme_color": "#111614",
+  "icons": [{"src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}]
+}

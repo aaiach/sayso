@@ -17,8 +17,20 @@ def _tty() -> None:
         raise BrokerError("setup needs an interactive terminal")
 
 
+def _prove_current(name: str, prompt: str) -> None:
+    """Changing an existing PIN / authenticator needs the current one, unless it's locked
+    (then the lock is the reason to reset it)."""
+    s = store.section(name)
+    if not s or s.get("failures", 0) >= methods.MAX_FAILURES:
+        return
+    m = methods.get(name)
+    if m.check(None, getpass.getpass(prompt)) is not methods.Verdict.APPROVED:
+        raise BrokerError(f"that's not the current {name.upper()}; nothing changed")
+
+
 def setup_pin() -> dict:
     _tty()
+    _prove_current("pin", "Current PIN (hidden): ")
     pin = getpass.getpass("New PIN, 4-8 digits (hidden): ")
     if getpass.getpass("Same PIN again (hidden): ") != pin:
         raise BrokerError("PINs differ; nothing saved")
@@ -28,6 +40,7 @@ def setup_pin() -> dict:
 
 def setup_otp(account: str = "") -> dict:
     _tty()
+    _prove_current("otp", "Current authenticator code (hidden): ")
     account = account or socket.gethostname()
     secret = totp.new_secret()
     uri = totp.uri(secret, account)

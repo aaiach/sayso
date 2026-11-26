@@ -18,6 +18,7 @@ import json
 import sys
 
 from . import trust_store
+from . import setup_wizard
 from .approval import TerminalApprover, setup
 from .approval.methods import METHODS
 from .browser import cdp, identity
@@ -38,13 +39,28 @@ def _args():
             p.add_argument("--label", default="card")
         p.add_argument("--approval", choices=list(METHODS), default="validate",
                        help="how the user approves: validate (one key: y), pin, otp")
+    sub.add_parser("setup")
+    sub.add_parser("pair")
+    sub.add_parser("unpair")
     sub.add_parser("setup-pin")
     sub.add_parser("setup-otp")
     sub.add_parser("approval-status")
     return ap.parse_args()
 
 
-SETUP = {"setup-pin": setup.setup_pin, "setup-otp": setup.setup_otp, "approval-status": setup.status}
+def _unpair() -> dict:
+    from .phone import keys
+    keys.forget_device()
+    return {"status": "unpaired"}
+
+
+def _pair() -> dict:
+    from .phone import pair
+    return pair.pair()
+
+
+SETUP = {"setup": setup_wizard.run, "pair": _pair, "unpair": _unpair, "setup-pin": setup.setup_pin,
+         "setup-otp": setup.setup_otp, "approval-status": setup.status}
 
 
 async def _run(a) -> dict:

@@ -5,7 +5,7 @@ them**. The agent drives the web page; a separate broker types the secret; you a
 use, from your phone, with a tap, a PIN or an authenticator code.
 
 > **Alpha.** Filling works on Linux (X11) with Chrome and a terminal approver. Phone approval
-> (self-hosted relay + Home Screen web app) is designed, not built yet.
+> (self-hosted relay + Home Screen web app) works one-tap only, and is newly built.
 
 ## How it works
 
@@ -54,6 +54,17 @@ secret into one field, after your approval) and `sayso_status`. It passes where 
 (a selector, the frame, "the focused field", or split code boxes) and which secret (a Chrome-saved
 password or card, or one you type when approving), never a value, never code. Until phone
 approval exists, the approval appears in a terminal window on the desktop.
+
+## Phone approval (alpha)
+
+1. Deploy your relay (`relay/README.md`: Railway, or any Docker host with HTTPS).
+2. Put its URL in `.env` as `BROKER_RELAY_URL`.
+3. Run `python -m broker.cli setup` in a terminal: it checks the secret store, offers a PIN and
+   an authenticator, then shows a QR code. Scan it on your phone, add sayso to the Home Screen,
+   pair, and confirm the key fingerprint on both screens.
+
+One-tap approvals for Chrome-saved passwords and cards then go to your phone (a notification,
+then Approve / Deny); everything else still uses the desktop window.
 
 ## Security notes
 
