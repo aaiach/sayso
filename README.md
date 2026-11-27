@@ -63,8 +63,9 @@ approval exists, the approval appears in a terminal window on the desktop.
    an authenticator, then shows a QR code. Scan it on your phone, add sayso to the Home Screen,
    pair, and confirm the key fingerprint on both screens.
 
-One-tap approvals for Chrome-saved passwords and cards then go to your phone (a notification,
-then Approve / Deny); everything else still uses the desktop window.
+One-tap approvals then go to your phone (a notification, then Approve / Deny), including
+codes, passwords or card details you type on the phone; PIN and authenticator approvals still
+use the desktop window.
 
 ## Security notes
 
@@ -75,3 +76,6 @@ then Approve / Deny); everything else still uses the desktop window.
 - Like desktop password managers, sayso runs as your user and doesn't defend against hostile
   code running as you. The terminal approver is a safeguard; phone approval (in progress) moves
   the approval to a separate device.
+- The phone's Noise code is our own short implementation; it is checked against the official
+  Noise test vectors and against the Python reference library. See
+  [`tests/noise_vectors/README.md`](tests/noise_vectors/README.md).
