@@ -70,6 +70,12 @@ def activate(win: Window) -> None:
     _xdo("windowactivate", "--sync", win.id)
 
 
+def bring_to_front(win: Window) -> None:
+    """Focus and raise: GNOME focuses a background process's new window without raising it."""
+    _xdo("windowactivate", "--sync", win.id)
+    _xdo("windowraise", win.id)
+
+
 def active_pid() -> str:
     return _xdo("getactivewindow", "getwindowpid").stdout.strip()
 

@@ -5,7 +5,7 @@ them**. The agent drives the web page; a separate broker types the secret; you a
 use from your phone with one tap, and type codes or CVCs there when a site asks.
 
 > **Alpha.** Linux (X11) with Chrome. Approvals go to your phone (self-hosted relay + Home
-> Screen web app), or to a terminal window on the machine when no phone is paired.
+> Screen web app), or, when the agent runs on your own computer, to a desktop notification there.
 
 ## How it works
 
@@ -68,6 +68,19 @@ or card detail you type there.
 There is no PIN or authenticator step. Someone holding your unlocked phone already has the apps
 and sites it's logged into; a PIN would guard only the same things. The secrets that matter
 (CVC, passwords, codes) come from you anyway.
+
+## Local mode (agent on your own computer)
+
+With no phone paired, approvals come up on this computer: a desktop notification with
+Approve / Deny, or a small dialog when you need to type a code, CVC or password. No phone,
+relay or pairing. Needs a Linux desktop session (freedesktop notifications) and `zenity`.
+`BROKER_APPROVER=local` forces it; `sayso_status` tells the agent where approvals go.
+
+Limit: an agent running as you on the same desktop could click Approve itself. Local mode stops
+an agent from using a secret without asking, not one set on getting around the check. If that
+matters to you, approve from a paired phone instead.
+
+Check it by hand: `PYTHONPATH=. python tests/manual_local_mode.py`.
 
 ## Security notes
 
