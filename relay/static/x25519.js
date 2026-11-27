@@ -6,21 +6,35 @@ import { x25519 as noble } from "./vendor/noble-x25519.js";
 
 const subtle = globalThis.crypto.subtle;
 let nativeOk = globalThis.SAYSO_FORCE_NOBLE ? false : null;
+let problem = "";                              // which step of the built-in test failed, and how
+
+async function probe(extractable) {
+  let step = "generateKey";
+  try {
+    const a = await subtle.generateKey({ name: "X25519" }, extractable, ["deriveBits"]);
+    step = "exportKey";
+    const pub = new Uint8Array(await subtle.exportKey("raw", a.publicKey));
+    step = "importKey";
+    const p = await subtle.importKey("raw", pub, { name: "X25519" }, true, []);
+    step = "deriveBits";
+    await subtle.deriveBits({ name: "X25519", public: p }, a.privateKey, 256);
+    return "";
+  } catch (e) {
+    return `${step}: ${e?.name || "error"}`;
+  }
+}
 
 export async function native() {
   if (nativeOk === null) {
-    try {
-      const a = await subtle.generateKey({ name: "X25519" }, false, ["deriveBits"]);
-      const pub = new Uint8Array(await subtle.exportKey("raw", a.publicKey));
-      const p = await subtle.importKey("raw", pub, { name: "X25519" }, true, []);
-      await subtle.deriveBits({ name: "X25519", public: p }, a.privateKey, 256);
-      nativeOk = true;
-    } catch {
-      nativeOk = false;
-    }
+    problem = await probe(false);
+    if (problem) problem += ` (extractable key: ${(await probe(true)) || "works"})`;
+    nativeOk = !problem;
   }
   return nativeOk;
 }
+
+// Why the built-in X25519 isn't used ("" when it is, or when the fallback was forced).
+export const nativeProblem = () => problem;
 
 export async function generateKeyPair(extractable = false) {
   if (await native()) {

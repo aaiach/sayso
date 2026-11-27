@@ -3,13 +3,16 @@ import { listen, pollNow } from "./approve.js";
 import { build } from "./ask.js";
 import { pair, parse, subscribe } from "./pair.js";
 import * as store from "./store.js";
-import { native } from "./x25519.js";
+import { native, nativeProblem } from "./x25519.js";
 
-const VERSION = "4";                          // shown on screen, to tell which app build is running
+const VERSION = "5";                          // shown on screen, to tell which app build is running
 const $ = (id) => document.getElementById(id);
 const show = (id, on = true) => $(id).classList.toggle("hidden", !on);
 const status = (t) => { $("status").textContent = t; };
 const isIOS = /iPhone|iPad/.test(navigator.userAgent);
+const iosVersion = (navigator.userAgent.match(/OS (\d+[_\d]*) like Mac/) || [])[1]?.replaceAll("_", ".");
+// Shown under the app: why the built-in X25519 failed, and the iOS version (no other device data).
+const diag = () => (nativeProblem() ? ` · built-in failed at ${nativeProblem()}` : "") + (iosVersion ? ` · iOS ${iosVersion}` : "");
 const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 
 const ui = {
@@ -55,7 +58,7 @@ function paired(p) {
   $("p-push").textContent = p.push ? "on" : "off (keep this app open to see requests)";
   status("Waiting for requests…");
   $("p-seen").textContent = "Connecting to the relay…";
-  native().then((n) => { $("crypto").textContent = `App v${VERSION} · key exchange: ${n ? "built in" : "noble-curves"}`; });
+  native().then((n) => { $("crypto").textContent = `App v${VERSION} · key exchange: ${n ? "built in" : "noble-curves"}${diag()}`; });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) pollNow(); });
   addEventListener("pageshow", pollNow);
   navigator.serviceWorker?.addEventListener("message", (e) => { if (e.data === "poll") pollNow(); });
@@ -77,7 +80,7 @@ async function startPairing(link) {
 
 function pairingScreen() {
   show("pair");
-  native().then((n) => { $("crypto").textContent = `Key exchange: ${n ? "built into this browser" : "noble-curves (this browser lacks X25519)"}`; });
+  native().then((n) => { $("crypto").textContent = `Key exchange: ${n ? "built into this browser" : "noble-curves"}${diag()}`; });
   const link = parse(location.hash);
   if (link && isIOS && !standalone) {
     status("First add sayso to your Home Screen (Share → Add to Home Screen). Then copy the pairing " +
