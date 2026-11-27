@@ -6,7 +6,6 @@
          broker, and bound to this exact R by the handshake hash (no replay, no moving it)
 
 Typed secrets are held in memory only until the flow takes them (secret() hands each out once).
-PIN / authenticator approvals still go through the desktop window (see mcp_server).
 """
 from __future__ import annotations
 
@@ -24,15 +23,12 @@ TTL_S = 120
 def request_payload(req: Request, rid: str, expires: int) -> dict:
     return {"v": 2, "id": rid, "site": req.site, "frame": req.frame, "kind": req.kind,
             "item": req.label, "amount": req.amount, "certificate": req.certificate,
-            "warnings": list(req.warnings), "approve_with": "validate",
+            "warnings": list(req.warnings),
             "asks": [{"what": w, "length": n} for w, n in req.asks], "expires": expires}
 
 
 class PhoneApprover:
-    def __init__(self, method: str = "validate"):
-        if method != "validate":
-            raise BrokerError("phone approval is one-tap only for now; use the desktop window "
-                              "for PIN / authenticator approvals")
+    def __init__(self):
         self.device = keys.device()
         if not self.device:
             raise BrokerError("no phone paired: run `python -m broker.cli setup`")

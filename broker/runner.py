@@ -81,7 +81,7 @@ def main(spec_path: str, result_path: str, deadline: str = "") -> None:
         os.unlink(spec_path)
         s = sp.parse(raw)
         print(f"sayso: {s.secret['from']} on {s.site} ({sp.label(s)})")
-        approver = Expiring(TerminalApprover(s.approval), float(deadline or started + 170))
+        approver = Expiring(TerminalApprover(), float(deadline or started + 170))
         out = asyncio.run(execute(s, approver))
     except BrokerError as e:
         out = {"status": "refused", "reason": str(e)}

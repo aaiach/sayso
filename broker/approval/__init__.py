@@ -1,11 +1,12 @@
 """The trust boundary: only the *user* can approve a fill or supply a secret.
 
+An approval is a single yes / no (one tap on the phone, one key in the terminal). There is no
+PIN or authenticator step: on a phone the user has unlocked, it would guard only what that
+phone already exposes (retired 2026-11-27).
+
   request.py   what is being approved (never secret) + secret normalisation
-  methods/     how an approval is proven: validate (one tap), PIN, authenticator code; one file each
-  terminal.py  the channel the user answers on (terminal today, phone app later)
-  setup.py     one-time PIN / authenticator setup
-  store.py     method state (PIN hash, authenticator secret, lockout counters), mode 0600
-  totp.py      RFC 6238 codes, stdlib only
+  terminal.py  the desktop channel (phone channel: ../phone/approver.py)
+  window.py    opens the terminal channel in a window on this machine
 
 Secrets returned by an approver are held in memory only and are never printed, logged or
 returned to the agent.

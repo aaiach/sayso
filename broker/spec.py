@@ -1,10 +1,9 @@
-"""One fill request as the agent describes it: which tab, where, which secret, how to approve.
+"""One fill request as the agent describes it: which tab, where, which secret.
 Validated here, before any window opens. Contains no secret by construction."""
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 
-from .approval.methods import METHODS
 from .browser.target import Target
 from .errors import BrokerError
 from .flows.user_secret import WHAT
@@ -18,7 +17,6 @@ class FillSpec:
     secret: dict                    # {"from": ..., + source-specific keys}
     target: dict = field(default_factory=dict)
     label: str = ""
-    approval: str = "validate"
 
     @property
     def tgt(self) -> Target:
@@ -35,15 +33,13 @@ def _require(d: dict, *keys: str) -> None:
 
 
 def parse(d: dict) -> FillSpec:
-    unknown = set(d) - {"site", "secret", "target", "label", "approval"}
+    unknown = set(d) - {"site", "secret", "target", "label"}
     if unknown:
         raise BrokerError(f"unknown keys: {', '.join(sorted(unknown))}")
     s = FillSpec(str(d.get("site", "")).strip(), dict(d.get("secret") or {}),
-                 dict(d.get("target") or {}), str(d.get("label", "")), d.get("approval") or "validate")
+                 dict(d.get("target") or {}), str(d.get("label", "")))
     if not s.site or "/" in s.site:
         raise BrokerError("site must be a host name, e.g. app.example.com")
-    if s.approval not in METHODS:
-        raise BrokerError(f"approval must be one of {', '.join(METHODS)}")
     src = s.secret.get("from")
     if src not in SOURCES:
         raise BrokerError(f"secret.from must be one of {', '.join(SOURCES)}")

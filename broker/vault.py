@@ -1,5 +1,4 @@
-"""Where the broker keeps its own secrets (PIN hash, authenticator secret, later the pairing
-keys): named text values behind one tiny interface, so the backend can be swapped.
+"""Where the broker keeps its own secrets (the phone-pairing and push keys): named text values behind one tiny interface, so the backend can be swapped.
 
   keyring (default)  the OS secret store via the `keyring` library: Secret Service / GNOME
                      Keyring on Linux, Keychain on macOS. Encrypted at rest, unlocked with the

@@ -5,8 +5,8 @@
   python -m broker.cli password        --site app.example.com [--username user@example.com] --fill
   python -m broker.cli otp             --site bank.example.com [--label "Bank SMS code"] --fill
 
-Every fill takes --approval validate|pin|otp (default validate). One-time setup, run directly
-in a terminal (not via bin/broker-terminal, which logs): setup-pin, setup-otp; approval-status.
+Each fill asks for a one-key approval (y) in the terminal. One-time setup, run directly in a
+terminal: setup (secret store check + phone pairing), pair, unpair.
 
 Prints one JSON line of masked results. Errors print their type only when unexpected.
 """
@@ -19,8 +19,7 @@ import sys
 
 from . import trust_store
 from . import setup_wizard
-from .approval import TerminalApprover, setup
-from .approval.methods import METHODS
+from .approval import TerminalApprover
 from .browser import cdp, identity
 from .errors import BrokerError, masked
 from .flows import direct, otp
@@ -37,14 +36,9 @@ def _args():
             p.add_argument("--username")
         if name in ("card", "cvc", "otp"):
             p.add_argument("--label", default="card")
-        p.add_argument("--approval", choices=list(METHODS), default="validate",
-                       help="how the user approves: validate (one key: y), pin, otp")
     sub.add_parser("setup")
     sub.add_parser("pair")
     sub.add_parser("unpair")
-    sub.add_parser("setup-pin")
-    sub.add_parser("setup-otp")
-    sub.add_parser("approval-status")
     return ap.parse_args()
 
 
@@ -59,8 +53,7 @@ def _pair() -> dict:
     return pair.pair()
 
 
-SETUP = {"setup": setup_wizard.run, "pair": _pair, "unpair": _unpair, "setup-pin": setup.setup_pin,
-         "setup-otp": setup.setup_otp, "approval-status": setup.status}
+SETUP = {"setup": setup_wizard.run, "pair": _pair, "unpair": _unpair}
 
 
 async def _run(a) -> dict:
@@ -75,7 +68,7 @@ async def _run(a) -> dict:
             out["site"] = {"chrome": ident.security_state, "subject": ident.subject, "issuer": ident.issuer,
                            "sha256": ident.sha256[:16], "warnings": list(trust_store.warnings(ident))}
             return out
-        approver = TerminalApprover(a.approval)
+        approver = TerminalApprover()
         if a.cmd == "card":
             return await direct.fill_card(page, approver, a.label)
         if a.cmd == "cvc":

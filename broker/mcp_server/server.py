@@ -1,4 +1,4 @@
-"""MCP tools for agents: check a target, fill one secret, see approval methods.
+"""MCP tools for agents: check a target, fill one secret, see where approvals go.
 
 The agent does everything about the page (navigation, multi-step flows, clicks, retries) and
 calls sayso_fill once per secret, at the moment it's needed. No argument carries a secret and
@@ -13,7 +13,7 @@ from mcp.server.mcpserver import MCPServer
 import time
 
 from .. import config, inspect_target, runner, spec as sp
-from ..approval import setup, window
+from ..approval import window
 from ..errors import BrokerError, masked
 
 TARGET_DOC = """target says where the secret goes (locations only, never code), one of:
@@ -41,9 +41,8 @@ mcp = MCPServer("sayso", instructions=(
 _one_at_a_time = asyncio.Lock()
 
 
-def _spec(site: str, secret: dict, target: dict | None, label: str = "", approval: str = "validate"):
-    return sp.parse({"site": site, "secret": secret, "target": target or {}, "label": label,
-                     "approval": approval})
+def _spec(site: str, secret: dict, target: dict | None, label: str = ""):
+    return sp.parse({"site": site, "secret": secret, "target": target or {}, "label": label})
 
 
 @mcp.tool(description="Dry run, no approval, no clicks: resolve the target on the open tab and "
@@ -65,40 +64,41 @@ async def sayso_check(site: str, secret: dict, target: dict | None = None) -> di
           "saved secrets: you pick the entry) | denied | timeout | refused | error, with a reason "
           "you can act on (e.g. retarget and retry). It never submits.\n\n"
           f"site: host of the open tab.\n{TARGET_DOC}\n{SECRET_DOC}\n"
-          "label: what the user sees on the approval card (e.g. 'Example login, SMS code').\n"
-          "approval: validate (one tap) | pin | otp (authenticator code).")
-async def sayso_fill(site: str, secret: dict, target: dict | None = None, label: str = "",
-                     approval: str = "validate") -> dict:
+          "label: what the user sees on the approval card (e.g. 'Example login, SMS code').")
+async def sayso_fill(site: str, secret: dict, target: dict | None = None, label: str = "") -> dict:
     try:
-        s = _spec(site, secret, target, label, approval)
+        s = _spec(site, secret, target, label)
     except BrokerError as e:
         return {"status": "refused", "reason": str(e)}
     async with _one_at_a_time:
-        if not _on_phone(s):
+        if not _on_phone():
             return {**await asyncio.to_thread(window.run, s.to_dict()), "approved_on": "desktop window"}
         from ..phone.approver import PhoneApprover
         try:
-            approver = runner.Expiring(PhoneApprover(s.approval), time.time() + 170)
+            approver = runner.Expiring(PhoneApprover(), time.time() + 170)
         except BrokerError as e:
             return {"status": "refused", "reason": str(e)}
         out = await asyncio.to_thread(lambda: asyncio.run(runner.execute(s, approver)))
         return {**out, "approved_on": "phone", "push": approver.inner.push_status}
 
 
-def _on_phone(s: sp.FillSpec) -> bool:
-    """auto: the paired phone for one-tap approvals, including secrets the user types there;
-    the desktop window for PIN / authenticator approvals."""
+def _on_phone() -> bool:
+    """auto: the paired phone when there is one (and a relay), else the desktop window."""
     if config.APPROVER == "terminal":
         return False
     if config.APPROVER == "phone":
         return True
     from ..phone import keys
-    return bool(config.RELAY_URL) and keys.device() is not None and s.approval == "validate"
+    return bool(config.RELAY_URL) and keys.device() is not None
 
 
-@mcp.tool(description="Which approval methods are ready (validate, pin, otp).")
+@mcp.tool(description="Where approvals go: the paired phone or the desktop window.")
 async def sayso_status() -> dict:
-    return setup.status()
+    from ..phone import keys
+    dev = keys.device()
+    return {"approvals_on": "phone" if _on_phone() else "desktop window",
+            "phone": f"paired ({dev['name']})" if dev else "not paired",
+            "relay": "set" if config.RELAY_URL else "not set", "secrets_in": config.SECRET_BACKEND}
 
 
 def main() -> None:

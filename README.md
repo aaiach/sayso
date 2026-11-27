@@ -2,10 +2,10 @@
 
 Let AI agents use your passwords, one-time codes and payment cards **without ever seeing
 them**. The agent drives the web page; a separate broker types the secret; you approve each
-use, from your phone, with a tap, a PIN or an authenticator code.
+use from your phone with one tap, and type codes or CVCs there when a site asks.
 
-> **Alpha.** Filling works on Linux (X11) with Chrome and a terminal approver. Phone approval
-> (self-hosted relay + Home Screen web app) works one-tap only, and is newly built.
+> **Alpha.** Linux (X11) with Chrome. Approvals go to your phone (self-hosted relay + Home
+> Screen web app), or to a terminal window on the machine when no phone is paired.
 
 ## How it works
 
@@ -37,11 +37,10 @@ Start Chrome with `--remote-debugging-port=9222 --user-data-dir=<profile>`, open
 checkout page, then (dry run first, add `--fill` to fill):
 
 ```bash
-python -m broker.cli otp --site bank.example.com --approval validate --fill
+python -m broker.cli otp --site bank.example.com --fill
 ```
 
-Approval methods: `--approval validate` (one key), `pin` (`setup-pin` first) or `otp`
-(`setup-otp` first, scan the QR with any authenticator app).
+The terminal asks for one key (`y`) to approve, then for any secret you type.
 
 ## Use it from an agent (MCP)
 
@@ -59,17 +58,20 @@ approval exists, the approval appears in a terminal window on the desktop.
 
 1. Deploy your relay (`relay/README.md`: Railway, or any Docker host with HTTPS).
 2. Put its URL in `.env` as `BROKER_RELAY_URL`.
-3. Run `python -m broker.cli setup` in a terminal: it checks the secret store, offers a PIN and
-   an authenticator, then shows a QR code. Scan it on your phone, add sayso to the Home Screen,
+3. Run `python -m broker.cli setup` in a terminal: it checks the secret store, then shows a
+   QR code. Scan it on your phone, add sayso to the Home Screen,
    pair, and confirm the key fingerprint on both screens.
 
-One-tap approvals then go to your phone (a notification, then Approve / Deny), including
-codes, passwords or card details you type on the phone; PIN and authenticator approvals still
-use the desktop window.
+Approvals then go to your phone: a notification, then Approve / Deny, plus any code, password
+or card detail you type there.
+
+There is no PIN or authenticator step. Someone holding your unlocked phone already has the apps
+and sites it's logged into; a PIN would guard only the same things. The secrets that matter
+(CVC, passwords, codes) come from you anyway.
 
 ## Security notes
 
-- The broker's own secrets (PIN hash, authenticator secret, later the phone-pairing keys) live in
+- The broker's own secrets (the phone-pairing and push keys) live in
   the OS keyring (GNOME Keyring / Secret Service on Linux, Keychain on macOS), encrypted at rest.
   Machines without one can opt into a 0600 file with `BROKER_SECRET_BACKEND=file`.
 - Never commit `.env` or anything from the state directory; the repo's `.gitignore` covers both.
