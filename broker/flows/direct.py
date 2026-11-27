@@ -1,5 +1,5 @@
-"""Fills WITHOUT a password/card manager: the approver supplies the secret (terminal today,
-the user's app later) and the broker types it with real keystrokes. Nothing is submitted.
+"""Fills WITHOUT a password/card manager: the approver supplies the secret the user typed (on
+the phone or this computer) and the broker types it with real keystrokes. Nothing is submitted.
 
 Use cases: password (+ optional username), full card (number/expiry/CVC), CVC only.
 One-time codes: flows/otp.py (same `type_into`).

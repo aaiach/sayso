@@ -40,7 +40,7 @@ checkout page, then (dry run first, add `--fill` to fill):
 python -m broker.cli otp --site bank.example.com --fill
 ```
 
-The terminal asks for one key (`y`) to approve, then for any secret you type.
+You approve on your paired phone, or on this computer when no phone is paired (see Local mode).
 
 ## Use it from an agent (MCP)
 
@@ -51,8 +51,8 @@ claude mcp add --scope user sayso -e PYTHONPATH=$PWD -- python -m broker.mcp_ser
 The agent gets three tools: `sayso_check` (dry run: is the target right?), `sayso_fill` (one
 secret into one field, after your approval) and `sayso_status`. It passes where the field is
 (a selector, the frame, "the focused field", or split code boxes) and which secret (a Chrome-saved
-password or card, or one you type when approving), never a value, never code. Until phone
-approval exists, the approval appears in a terminal window on the desktop.
+password or card, or one you type when approving), never a value, never code. The approval
+appears on your phone, or on this computer when no phone is paired.
 
 ## Phone approval (alpha)
 
@@ -89,8 +89,7 @@ Check it by hand: `PYTHONPATH=. python tests/manual_local_mode.py`.
   Machines without one can opt into a 0600 file with `BROKER_SECRET_BACKEND=file`.
 - Never commit `.env` or anything from the state directory; the repo's `.gitignore` covers both.
 - Like desktop password managers, sayso runs as your user and doesn't defend against hostile
-  code running as you. The terminal approver is a safeguard; phone approval (in progress) moves
-  the approval to a separate device.
+  code running as you. Phone approval moves the approval to a separate device.
 - The phone's Noise code is our own short implementation; it is checked against the official
   Noise test vectors and against the Python reference library. See
   [`tests/noise_vectors/README.md`](tests/noise_vectors/README.md).

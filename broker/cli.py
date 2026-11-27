@@ -5,8 +5,9 @@
   python -m broker.cli password        --site app.example.com [--username user@example.com] --fill
   python -m broker.cli otp             --site bank.example.com [--label "Bank SMS code"] --fill
 
-Each fill asks for a one-key approval (y) in the terminal. One-time setup, run directly in a
-terminal: setup (secret store check + phone pairing), pair, unpair.
+Each fill asks for approval on the paired phone or on this computer (see channel.py), like the
+MCP tool. One-time setup, run directly in a terminal: setup (secret store check + phone
+pairing), pair, unpair.
 
 Prints one JSON line of masked results. Errors print their type only when unexpected.
 """
@@ -19,7 +20,6 @@ import sys
 
 from . import trust_store
 from . import setup_wizard
-from .approval import TerminalApprover
 from .browser import cdp, identity
 from .errors import BrokerError, masked
 from .flows import direct, otp
@@ -68,7 +68,7 @@ async def _run(a) -> dict:
             out["site"] = {"chrome": ident.security_state, "subject": ident.subject, "issuer": ident.issuer,
                            "sha256": ident.sha256[:16], "warnings": list(trust_store.warnings(ident))}
             return out
-        approver = TerminalApprover()
+        approver = _approver()
         if a.cmd == "card":
             return await direct.fill_card(page, approver, a.label)
         if a.cmd == "cvc":
@@ -76,6 +76,13 @@ async def _run(a) -> dict:
         if a.cmd == "otp":
             return await otp.fill_otp(page, approver, a.label)
         return await direct.fill_password(page, approver, a.username)
+
+
+def _approver():
+    import time
+    from . import channel, runner
+    deadline = time.time() + 170
+    return runner.Expiring(channel.approver(channel.which(), deadline), deadline)
 
 
 async def _dry(page, a) -> dict:

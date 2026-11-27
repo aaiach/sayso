@@ -40,9 +40,8 @@ TRUST_STORE = _path("BROKER_TRUST_STORE", str(STATE_DIR / "known_sites.json"))
 SECRET_BACKEND = os.environ.get("BROKER_SECRET_BACKEND", "keyring")
 KEYRING_SERVICE = os.environ.get("BROKER_KEYRING_SERVICE", "sayso")
 
-# Phone approval: your self-hosted relay, and which approver to use:
-#   auto (default): the paired phone when there is one, else this computer's desktop
-#                   notifications (local mode), else a terminal window
-#   phone / local / terminal: always that one
+# Phone approval: your self-hosted relay, and which approver to use (see channel.py):
+#   auto (default): the paired phone when there is one, else this computer (local mode)
+#   phone / local: always that one
 RELAY_URL = os.environ.get("BROKER_RELAY_URL", "")
 APPROVER = os.environ.get("BROKER_APPROVER", "auto")

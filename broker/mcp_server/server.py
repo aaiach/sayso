@@ -12,8 +12,7 @@ from mcp.server.mcpserver import MCPServer
 
 import time
 
-from .. import config, inspect_target, runner, spec as sp
-from ..approval import window
+from .. import channel, config, inspect_target, runner, spec as sp
 from ..errors import BrokerError, masked
 
 TARGET_DOC = """target says where the secret goes (locations only, never code), one of:
@@ -71,45 +70,27 @@ async def sayso_fill(site: str, secret: dict, target: dict | None = None, label:
     except BrokerError as e:
         return {"status": "refused", "reason": str(e)}
     async with _one_at_a_time:
-        channel = _channel()
-        if channel == "desktop window":
-            return {**await asyncio.to_thread(window.run, s.to_dict()), "approved_on": channel}
         try:
-            approver = runner.Expiring(_approver(channel, time.time() + 170), time.time() + 170)
+            where = channel.which()
+            deadline = time.time() + 170
+            approver = runner.Expiring(channel.approver(where, deadline), deadline)
         except BrokerError as e:
             return {"status": "refused", "reason": str(e)}
         out = await asyncio.to_thread(lambda: asyncio.run(runner.execute(s, approver)))
-        extra = {"push": approver.inner.push_status} if channel == "phone" else {}
-        return {**out, "approved_on": channel, **extra}
+        extra = {"push": approver.inner.push_status} if where == channel.PHONE else {}
+        return {**out, "approved_on": where, **extra}
 
 
-def _channel() -> str:
-    """auto: the paired phone (with a relay), else this computer's desktop notifications,
-    else the terminal window. BROKER_APPROVER=phone | local | terminal forces one."""
-    forced = {"phone": "phone", "local": "this computer", "terminal": "desktop window"}
-    if config.APPROVER in forced:
-        return forced[config.APPROVER]
-    from ..phone import keys
-    if config.RELAY_URL and keys.device() is not None:
-        return "phone"
-    from ..local import notify
-    return "this computer" if notify.available() else "desktop window"
-
-
-def _approver(channel: str, deadline: float):
-    if channel == "phone":
-        from ..phone.approver import PhoneApprover
-        return PhoneApprover()
-    from ..local.approver import LocalApprover
-    return LocalApprover(deadline)
-
-
-@mcp.tool(description="Where approvals go: the paired phone, this computer, or the terminal window.")
+@mcp.tool(description="Where approvals go: the user's paired phone or this computer. "
+          "Set by the user's configuration; tell the user where to look.")
 async def sayso_status() -> dict:
     from ..phone import keys
     dev = keys.device()
-    return {"approvals_on": _channel(),
-            "phone": f"paired ({dev['name']})" if dev else "not paired",
+    try:
+        where = channel.which()
+    except BrokerError as e:
+        where = f"none: {e}"
+    return {"approvals_on": where, "phone": f"paired ({dev['name']})" if dev else "not paired",
             "relay": "set" if config.RELAY_URL else "not set", "secrets_in": config.SECRET_BACKEND}
 
 

@@ -1,20 +1,13 @@
-"""Runs one FillSpec end to end in the approval window, and writes only the masked result.
-
-  python -m broker.runner <spec.json> <result.json> [deadline_epoch]
-
-The spec file is deleted as soon as it's read; the result file (0600) holds a status and
-masked facts, never a value. Errors are reported by type unless they are BrokerErrors.
+"""Runs one FillSpec end to end with a given approver (phone or local) and returns only a
+status and masked facts, never a value. Errors are reported by type unless they are
+BrokerErrors (secrets may be in scope).
 """
 from __future__ import annotations
 
-import asyncio
-import json
-import os
-import sys
 import time
 
 from . import spec as sp
-from .approval import Approver, TerminalApprover
+from .approval import Approver
 from .browser import cdp, identity
 from .errors import BrokerError, masked
 from .flows import saved, user_secret
@@ -64,37 +57,3 @@ async def execute(s: sp.FillSpec, approver: Approver) -> dict:
         return {"status": "refused", "reason": str(e)}
     except Exception as e:
         return {"status": "error", "reason": masked(e)}
-
-
-def _write(path: str, out: dict) -> None:
-    fd = os.open(path + ".tmp", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
-        json.dump(out, f)
-    os.replace(path + ".tmp", path)
-
-
-def main(spec_path: str, result_path: str, deadline: str = "") -> None:
-    started = time.time()
-    try:
-        with open(spec_path) as f:
-            raw = json.load(f)
-        os.unlink(spec_path)
-        s = sp.parse(raw)
-        print(f"sayso: {s.secret['from']} on {s.site} ({sp.label(s)})")
-        approver = Expiring(TerminalApprover(), float(deadline or started + 170))
-        out = asyncio.run(execute(s, approver))
-    except BrokerError as e:
-        out = {"status": "refused", "reason": str(e)}
-    except KeyboardInterrupt:
-        out = {"status": "denied", "reason": "window interrupted"}
-    except Exception as e:  # secrets may be in scope: never print exception details
-        out = {"status": "error", "reason": masked(e)}
-    out["seconds"] = round(time.time() - started, 1)
-    _write(result_path, out)
-    print(f"\nResult: {out['status']}" + (f" ({out['reason']})" if out.get("reason") else ""))
-    print("Nothing was submitted. This window closes in 3 s.")
-    time.sleep(3)
-
-
-if __name__ == "__main__":
-    main(*sys.argv[1:4])
